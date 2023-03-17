@@ -1,5 +1,5 @@
 # mobi2stardict
-Convert unpacked MOBI dictionaries to Babylon glossary source files, an intermediary format for StarDict.
+Convert unpacked MOBI dictionaries to StarDict input formats: Babylon Glossary Source (GLS) format and StarDict Textual Dictionary Format
 
 # Usage
 `python.exe mobi2stardict.py --help`
