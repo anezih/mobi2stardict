@@ -7,18 +7,17 @@ import sys
 @dataclass
 class Entry:
     HW: str
-    INFL: list[str]
+    INFL: set[str]
     BODY: str
 
-def fix(body_obj):
-    new_body = body_obj
-    temp = BeautifulSoup(body_obj, "lxml")
+def fix(body_str: str) -> None:
+    temp = BeautifulSoup(body_str, "lxml")
     links = temp.find_all("a", href=True)
     for link in links:
-        new_body = re.sub(link["href"], f"bword://{link.getText()}", new_body)
-    return new_body
+        body_str = re.sub(link["href"], f"bword://{link.getText()}", body_str)
+    return body_str
 
-def convert(html, dict_name, author, fix_links, gls, textual, chunked):
+def convert(html: str, dict_name: str, author: str, fix_links: bool, gls: bool, textual: bool, chunked: bool) -> None:
     try:
         with open(html, "r", encoding="utf-8") as f:
             book = f.read()
@@ -27,17 +26,17 @@ def convert(html, dict_name, author, fix_links, gls, textual, chunked):
     entry_groups = []
     if chunked:
         cnt = 0
-        temp = ""
+        temp = []
         parts = book.split("<idx:entry")[1:]
         last_part = parts[-1]
         for p in parts:
             if p:
-                temp += ("<idx:entry" + p)
+                temp.append(("<idx:entry" + p))
                 cnt += 1
                 if cnt == 5000 or p == last_part:
-                    entry_groups.append(temp)
+                    entry_groups.append("".join(temp))
                     cnt = 0
-                    temp = ""
+                    temp = []
     else:
         entry_groups.append(book)
     arr = []
@@ -59,43 +58,44 @@ def convert(html, dict_name, author, fix_links, gls, textual, chunked):
             for e in entries_temp:
                 headword = e.find("idx:orth").get("value")
                 inflections = e.find("idx:infl")
-                inflections_list = None
+                inflections_set = None
 
                 if inflections:
-                    inflections = inflections.find_all("idx:iform")
-                    inflections_list = [i.get("value") for i in inflections]
+                    inflections_set = {i.get("value") for i in inflections.find_all("idx:iform")}
 
                 body_re = re.search("</idx:orth>(.*?)</idx:entry>", str(e))
                 body = body_re.group(1)
                 if not body:
                     b = []
                     ns = e.next_siblings
-                    while (t := next(ns, "")) and not (str(t).startswith("<idx:entry") or str(t).startswith("<mbp:pagebreak")):
+                    while (t := next(ns, "")) and not (t.name == "idx:entry" or t.name == "mbp:pagebreak"):
                         b.append(str(t))
                     body = "".join(b)
-                    # body = "".join([str(i) for i in e.next_siblings if not str(i).startswith("<idx:entry>")])
                 if not body:
                     continue
 
                 if fix_links:
                     body = fix(body)
 
-                if inflections_list:
-                    arr.append(Entry(headword, inflections_list, body))
+                if inflections_set:
+                    if headword in inflections_set:
+                        inflections_set.remove(headword)
+                    arr.append(Entry(headword, inflections_set, body))
                 else:
-                    arr.append(Entry(headword, [], body))
-            
+                    arr.append(Entry(headword, {}, body))
+
     if gls:
         with open("book.gls", "w", encoding="utf-8") as d:
             d.write(f"\n#stripmethod=keep\n#sametypesequence=h\n#bookname={dict_name}\n#author={author}\n\n")
             for entry in arr:
-                headwords = f"{entry.HW}"
                 if entry.INFL:
-                    headwords += "|" + "|".join(entry.INFL)
+                    headwords = f"{entry.HW}|{'|'.join(entry.INFL)}"
+                else:
+                    headwords = entry.HW
                 single_def = f"{headwords}\n{entry.BODY}\n\n"
                 d.write(single_def)
     if textual:
-        from lxml import etree  as ET
+        from lxml import etree as ET
         from datetime import datetime
 
         root = ET.Element("stardict")
@@ -113,21 +113,16 @@ def convert(html, dict_name, author, fix_links, gls, textual, chunked):
         for entry in arr:
             article = ET.SubElement(root, "article")
             key     = ET.SubElement(article, "key").text = entry.HW
-            if entry.INFL:
-                infl = set(entry.INFL)
-                if entry.HW in infl:
-                    infl.remove(entry.HW)
-                for i in infl:
-                    syn = ET.SubElement(article, "synonym").text = i
+            for i in entry.INFL:
+                syn = ET.SubElement(article, "synonym").text = i
             cdata   = ET.CDATA(entry.BODY)
             defi    = ET.SubElement(article, "definition")
             defi.attrib["type"] = "h"
             defi.text = cdata
-        
+
         xml_str = ET.tostring(root, xml_declaration=True, encoding="UTF-8", pretty_print=True)
         with open("book_stardict_textual.xml", "wb") as d:
             d.write(xml_str)
-        
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=
@@ -136,7 +131,7 @@ if __name__ == '__main__':
     to Babylon Glossary source files (.gls) or to Stardict Textual Dictionary Format.
     These source files can later be converted to StarDict format via StarDict Editor.
     Textual xml format can be converted to a wide-range of formats directly via PyGlossary.
-    
+
     You can unpack MOBI files via 'KindleUnpack' or its Calibre plugin. Alternatively, you can use mobitool from libmobi project.
     """)
     parser.add_argument('--html-file', default='part00000.html',
