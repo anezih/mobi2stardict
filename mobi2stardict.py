@@ -10,7 +10,7 @@ class Entry:
     INFL: set[str]
     BODY: str
 
-def fix(body_str: str) -> None:
+def fix(body_str: str) -> str:
     temp = BeautifulSoup(body_str, "lxml")
     links = temp.find_all("a", href=True)
     for link in links:
