@@ -85,7 +85,7 @@ def fix(body_str: str) -> str:
     return body_str
 
 def convert(html: str, dict_name: str, author: str, fix_links: bool,
-            gls: bool, textual: bool, chunked: bool, opf: bool) -> None:
+            gls: bool, textual: bool, chunked: bool) -> None:
     try:
         with open(html, "r", encoding="utf-8") as f:
             book = f.read()
@@ -174,7 +174,6 @@ def convert(html: str, dict_name: str, author: str, fix_links: bool,
                 d.flush()
     if textual:
         from lxml import etree as ET
-        from datetime import datetime
 
         root = ET.Element("stardict")
 
@@ -226,10 +225,8 @@ if __name__ == '__main__':
         help="Convert dictionary to Stardict Textual Dictionary Format.")
     parser.add_argument('--chunked', action='store_true',
         help="Parse html in chunks to reduce memory usage.")
-    parser.add_argument('--opf', action='store_true',
-        help="Try to get the relevant metadata from the opf file.")
     args = parser.parse_args()
     if not (args.gls or args.textual):
         sys.exit("You need to specify at least 1 output format: --gls, --textual or both.")
     convert(args.html_file, args.dict_name, args.author, args.fix_links,
-            args.gls, args.textual, args.chunked, args.opf)
+            args.gls, args.textual, args.chunked)

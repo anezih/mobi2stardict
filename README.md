@@ -5,7 +5,7 @@ Convert unpacked MOBI dictionaries to StarDict input formats: Babylon Glossary S
 `python.exe mobi2stardict.py --help`
 ```
 usage: mobi2stardict.py [-h] [--html-file HTML_FILE] [--fix-links] [--dict-name DICT_NAME] [--author AUTHOR] [--gls]
-                        [--textual] [--chunked] [--opf]
+                        [--textual] [--chunked]
 
 Convert unpacked Kindle MOBI dictionary files (book.html or part00000.html) to Babylon Glossary source files (.gls) or
 to Stardict Textual Dictionary Format. These source files can later be converted to StarDict format via StarDict
@@ -23,18 +23,17 @@ options:
   --gls                 Convert dictionary to Babylon glossary source.
   --textual             Convert dictionary to Stardict Textual Dictionary Format.
   --chunked             Parse html in chunks to reduce memory usage.
-  --opf                 Try to get the relevant metadata from the opf file.
 ```
 You need to install [Beautiful Soup](https://www.crummy.com/software/BeautifulSoup/bs4/doc/#installing-beautiful-soup) and [lxml](https://lxml.de/installation.html) packages to run the script.
 To convert the unpacked MOBI file to both GLS and Textual format you would call the script like this (assuming part00000.html is in the same directory with the script):
 ````
-python.exe mobi2stardict.py --fix-links --dict-name "Name of the dictionary" --author "Author" --gls --textual --opf
+python.exe mobi2stardict.py --fix-links --dict-name "Name of the dictionary" --author "Author" --gls --textual
 ````
 Change name and author accordingly.
 
 Also, while converting particularly large files you may want to pass the `--chunked` option to bring down the memory usage to more moderate levels. Then the line would become:
 ````
-python.exe mobi2stardict.py --fix-links --dict-name "Name of the dictionary" --author "Author" --gls --textual --chunked --opf
+python.exe mobi2stardict.py --fix-links --dict-name "Name of the dictionary" --author "Author" --gls --textual --chunked
 ````
 
 # NOTE
