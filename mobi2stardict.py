@@ -1,14 +1,14 @@
+import argparse
+import re
+import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
 from bs4 import BeautifulSoup
+from pyglossary.glossary_v2 import Glossary
 
-import argparse
-import glob
-import re
-import os
-import sys
+SCRIPT_DIR = Path(__file__).resolve().parent
 
 @dataclass
 class Entry:
@@ -32,13 +32,16 @@ def get_metadata(path: str) -> Metadata:
         return ""
     _base_dir = None
     if path == "part00000.html":
-        _base_dir = os.getcwd()
+        _base_dir = Path.cwd()
     else:
-        _base_dir = str(Path(path).parent.absolute().resolve())
-    opf_path = glob.glob(os.path.join(_base_dir, "*.opf"))[0]
+        _base_dir = SCRIPT_DIR
+    opf_path = next(_base_dir.glob("*.opf"), None)
     try:
-        with open(opf_path, "r", encoding="utf-8") as f:
-            opf_soup = BeautifulSoup(f.read(), "lxml-xml")
+        if opf_path:
+            with open(opf_path, "r", encoding="utf-8") as f:
+                opf_soup = BeautifulSoup(f.read(), "lxml-xml")
+        else:
+            return Metadata("","","","","","")
     except:
         print("Could not read opf file.")
         return Metadata("","","","","","")
@@ -84,11 +87,19 @@ def fix(body_str: str) -> str:
         body_str = re.sub(link["href"], f"bword://{link.getText()}", body_str)
     return body_str
 
-def convert(html: str, dict_name: str, author: str, fix_links: bool,
-            gls: bool, textual: bool, chunked: bool) -> None:
+def read_with_correct_encoding(html_path: str) -> str:
     try:
-        with open(html, "r", encoding="utf-8") as f:
+        with open(html_path, "r", encoding="utf-8") as f:
             book = f.read()
+            return book
+    except:
+        with open(html_path, "r", encoding="cp1252") as f:
+            book = f.read()
+            return book
+
+def convert(html: str, dict_name: str, author: str, fix_links: bool, chunked: bool) -> None:
+    try:
+        book = read_with_correct_encoding(html)
     except FileNotFoundError:
         sys.exit("Could not open the file. Check the filename.")
     if "<idx:" not in book:
@@ -109,7 +120,7 @@ def convert(html: str, dict_name: str, author: str, fix_links: bool,
                     temp = []
     else:
         entry_groups.append(book)
-    arr = []
+    arr: list[Entry] = []
     cnt = 0
     for group in entry_groups:
         soup = BeautifulSoup(group, "lxml")
@@ -127,12 +138,12 @@ def convert(html: str, dict_name: str, author: str, fix_links: bool,
                 entries_temp.append(entry) # FIXME find_all already gets nested ones and they are added to the out file twice.
 
             for e in entries_temp:
-                headword = e.find("idx:orth").get("value")
+                headword = e.find("idx:orth").get("value").strip()
                 inflections = e.find("idx:infl")
                 inflections_set = None
 
                 if inflections:
-                    inflections_set = {i.get("value") for i in inflections.find_all("idx:iform")}
+                    inflections_set = {i.get("value").strip() for i in inflections.find_all("idx:iform")}
 
                 body_re = re.search("</idx:orth>(.*?)</idx:entry>", str(e))
                 body = body_re.group(1)
@@ -157,57 +168,40 @@ def convert(html: str, dict_name: str, author: str, fix_links: bool,
                 cnt += 1
                 print("> Parsed", f"{cnt:,}", "entries.", end="\r")
     print()
+
     meta = get_metadata(path=html)
-    if gls:
-        gls_metadata  = f"\n#stripmethod=keep\n#sametypesequence=h\n"
-        gls_metadata += f"#bookname={set_metadata('Title',meta,dict_name,author)}\n"
-        gls_metadata += f"#author={set_metadata('Creator',meta,dict_name,author)}\n\n"
-        with open("book.gls", "w", encoding="utf-8") as d:
-            d.write(gls_metadata)
-            for entry in arr:
-                if entry.INFL:
-                    headwords = f"{entry.HW}|{'|'.join(entry.INFL)}"
-                else:
-                    headwords = entry.HW
-                single_def = f"{headwords}\n{entry.BODY}\n\n"
-                d.write(single_def)
-                d.flush()
-    if textual:
-        from lxml import etree as ET
+    Glossary.init()
+    glos = Glossary()
+    glos.setInfo("title", set_metadata('Title',meta,dict_name,author))
+    glos.setInfo("author", set_metadata('Creator',meta,dict_name,author))
+    glos.setInfo("description", set_metadata('Desc',meta,dict_name,author))
+    glos.setInfo("date", set_metadata('Date',meta,dict_name,author))
 
-        root = ET.Element("stardict")
+    arr.sort(key=lambda x: (x.HW.encode("utf-8").lower(), x.HW))
 
-        info     = ET.SubElement(root, "info")
-        version  = ET.SubElement(info, "version").text = "3.0.0"
-        bookname = ET.SubElement(info, "bookname").text = set_metadata('Title',meta,dict_name,author)
-        author_  = ET.SubElement(info, "author").text = set_metadata('Creator',meta,dict_name,author)
-        desc     = ET.SubElement(info, "description").text = set_metadata('Desc',meta,dict_name,author)
-        email    = ET.SubElement(info, "email").text = ""
-        website  = ET.SubElement(info, "website").text = ""
-        date     = ET.SubElement(info, "date").text = set_metadata('Date',meta,dict_name,author)
-        dicttype = ET.SubElement(info, "dicttype").text = ""
+    for entry in arr:
+        hw = [entry.HW]
+        hw.extend(entry.INFL)
+        glos.addEntry(
+            glos.newEntry(
+                word=hw,
+                defi=entry.BODY,
+                defiFormat="h"
+            )
+        )
 
-        for entry in arr:
-            article = ET.SubElement(root, "article")
-            key     = ET.SubElement(article, "key").text = entry.HW
-            for i in entry.INFL:
-                syn = ET.SubElement(article, "synonym").text = i
-            cdata   = ET.CDATA(entry.BODY)
-            defi    = ET.SubElement(article, "definition")
-            defi.attrib["type"] = "h"
-            defi.text = cdata
-
-        xml_str = ET.tostring(root, xml_declaration=True, encoding="UTF-8", pretty_print=True)
-        with open("book_stardict_textual.xml", "wb") as d:
-            d.write(xml_str)
+    outfolder = SCRIPT_DIR / "output"
+    if not outfolder.exists():
+        outfolder.mkdir()
+    fname = outfolder / "book_stardict"
+    glos.write(str(fname), "Stardict", dictzip=False)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=
     """
     Convert unpacked Kindle MOBI dictionary files (book.html or part00000.html)
-    to Babylon Glossary source files (.gls) or to Stardict Textual Dictionary Format.
-    These source files can later be converted to StarDict format via StarDict Editor.
-    Textual xml format can be converted to a wide-range of formats directly via PyGlossary.
+    to Stardict dictionary Format.
+    StarDict format can be converted to a wide-range of formats directly via PyGlossary.
 
     You can unpack MOBI files via 'KindleUnpack' or its Calibre plugin. Alternatively, you can use mobitool from libmobi project.
     """)
@@ -219,14 +213,7 @@ if __name__ == '__main__':
         help="Name of the dictionary file.")
     parser.add_argument('--author', default="author",
         help="Name of the author or publisher.")
-    parser.add_argument('--gls', action='store_true',
-        help="Convert dictionary to Babylon glossary source.")
-    parser.add_argument('--textual', action='store_true',
-        help="Convert dictionary to Stardict Textual Dictionary Format.")
     parser.add_argument('--chunked', action='store_true',
         help="Parse html in chunks to reduce memory usage.")
     args = parser.parse_args()
-    if not (args.gls or args.textual):
-        sys.exit("You need to specify at least 1 output format: --gls, --textual or both.")
-    convert(args.html_file, args.dict_name, args.author, args.fix_links,
-            args.gls, args.textual, args.chunked)
+    convert(args.html_file, args.dict_name, args.author, args.fix_links, args.chunked)
