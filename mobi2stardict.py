@@ -138,35 +138,37 @@ def convert(html: str, dict_name: str, author: str, fix_links: bool, chunked: bo
                 entries_temp.append(entry) # FIXME find_all already gets nested ones and they are added to the out file twice.
 
             for e in entries_temp:
-                headword = e.find("idx:orth").get("value").strip()
-                inflections = e.find("idx:infl")
-                inflections_set = None
+                if e.find("idx:orth"):
+                    headword = e.find("idx:orth").get("value").strip()
+                    inflections = e.find("idx:infl")
+                    inflections_set = None
 
-                if inflections:
-                    inflections_set = {i.get("value").strip() for i in inflections.find_all("idx:iform")}
+                    if inflections:
+                        inflections_set = {i.get("value").strip() for i in inflections.find_all("idx:iform")}
 
-                body_re = re.search("</idx:orth>(.*?)</idx:entry>", str(e))
-                body = body_re.group(1)
-                if not body:
-                    b = []
-                    ns = e.next_siblings
-                    while (t := next(ns, "")) and not (t.name == "idx:entry" or t.name == "mbp:pagebreak"):
-                        b.append(str(t))
-                    body = "".join(b)
-                if not body:
-                    continue
+                    body_re = re.search("</idx:orth>(.*?)</idx:entry>", str(e))
+                    body = body_re.group(1)
+                    if not body:
+                        b = []
+                        ns = e.next_siblings
+                        while (t := next(ns, "")) and not (t.name == "idx:entry" or t.name == "mbp:pagebreak"):
+                            b.append(str(t))
+                        body = "".join(b)
+                    if not body:
+                        continue
 
-                if fix_links:
-                    body = fix(body)
+                    if fix_links:
+                        body = fix(body)
 
-                if inflections_set:
-                    if headword in inflections_set:
-                        inflections_set.remove(headword)
-                    arr.append(Entry(headword, inflections_set, body))
-                else:
-                    arr.append(Entry(headword, {}, body))
-                cnt += 1
-                print("> Parsed", f"{cnt:,}", "entries.", end="\r")
+                    if inflections_set:
+                        if headword in inflections_set:
+                            inflections_set.remove(headword)
+                        arr.append(Entry(headword, inflections_set, body))
+                    else:
+                        arr.append(Entry(headword, {}, body))
+                    cnt += 1
+                    print("> Parsed", f"{cnt:,}", "entries.", end="\r")
+
     print()
 
     meta = get_metadata(path=html)
