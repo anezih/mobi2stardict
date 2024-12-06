@@ -21,7 +21,7 @@ options:
   --author AUTHOR       Name of the author or publisher.
   --chunked             Parse html in chunks to reduce memory usage.
 ```
-You need to install [Beautiful Soup](https://www.crummy.com/software/BeautifulSoup/bs4/doc/#installing-beautiful-soup), [lxml](https://lxml.de/installation.html) and **PyGlossary** (`pip install pyglossary`) packages to run the script.
+You need to install [Beautiful Soup](https://www.crummy.com/software/BeautifulSoup/bs4/doc/#installing-beautiful-soup), [lxml](https://lxml.de/installation.html) and **PyGlossary** (`pip install pyglossary beautifulsoup4 lxml`) packages to run the script.
 To convert the unpacked MOBI file to StarDict format you would call the script like this (assuming part00000.html is in the same directory with the script):
 ````
 python.exe mobi2stardict.py --fix-links --dict-name "Name of the dictionary" --author "Author"
