@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 
 from bs4 import BeautifulSoup
+from bs4.element import Tag
 from pyglossary.glossary_v2 import Glossary
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -82,9 +83,23 @@ def set_metadata(_key: str, _metadata: Metadata, dict_name: str, author: str):
 
 def fix(body_str: str) -> str:
     temp = BeautifulSoup(body_str, "lxml")
-    links = temp.find_all("a", href=True)
+    links: list[Tag] = temp.find_all("a", href=True)
     for link in links:
         body_str = re.sub(link["href"], f"bword://{link.getText()}", body_str)
+    images: list[Tag] = temp.find_all("img")
+    for img in images:
+        if img.has_attr("hisrc"):
+            hisrc = img["hisrc"]
+            file_name = Path(hisrc).name
+            body_str = re.sub(hisrc, file_name, body_str)
+        if img.has_attr("losrc"):
+            losrc = img["losrc"]
+            file_name = Path(losrc).name
+            body_str = re.sub(losrc, file_name, body_str)
+        if img.has_attr("src"):
+            src = img["src"]
+            file_name = Path(src).name
+            body_str = re.sub(src, file_name, body_str)
     return body_str
 
 def read_with_correct_encoding(html_path: str) -> str:
@@ -119,6 +134,8 @@ def convert(html: str, dict_name: str, author: str, fix_links: bool, chunked: bo
                     cnt = 0
                     temp = []
     else:
+        first_idx_tag_index = book.index("<idx:entry")
+        book = book[first_idx_tag_index:]
         entry_groups.append(book)
     arr: list[Entry] = []
     cnt = 0
@@ -197,6 +214,10 @@ def convert(html: str, dict_name: str, author: str, fix_links: bool, chunked: bo
         outfolder.mkdir()
     fname = outfolder / "book_stardict"
     glos.write(str(fname), "Stardict", dictzip=False)
+    res_folder = Path(outfolder / "res")
+    if not res_folder.exists():
+        res_folder.mkdir()
+    (res_folder / "Put the extracted images in this folder.txt").touch()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=
