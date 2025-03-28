@@ -86,6 +86,9 @@ def fix(body_str: str) -> str:
     links: list[Tag] = temp.find_all("a", href=True)
     for link in links:
         body_str = re.sub(link["href"], f"bword://{link.getText()}", body_str)
+    redundant_anchors: list[Tag] = [x for x in temp.find_all("a", id=True) if not x.text.strip()]
+    for anchor in redundant_anchors:
+        body_str = re.sub(str(anchor), "", body_str)
     images: list[Tag] = temp.find_all("img")
     for img in images:
         if img.has_attr("hisrc"):
@@ -213,7 +216,7 @@ def convert(html: str, dict_name: str, author: str, fix_links: bool, chunked: bo
     if not outfolder.exists():
         outfolder.mkdir()
     fname = outfolder / "book_stardict"
-    glos.write(str(fname), "Stardict", dictzip=False)
+    glos.write(filename=str(fname), formatName="Stardict", dictzip=False)
     res_folder = Path(outfolder / "res")
     if not res_folder.exists():
         res_folder.mkdir()
