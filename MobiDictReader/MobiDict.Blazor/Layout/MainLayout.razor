@@ -1,0 +1,28 @@
+﻿@inherits LayoutComponentBase
+@using MobiDict.Blazor.Shared
+
+<FluentLayout>
+    <FluentHeader>
+        Mobi2StarDict
+        <FluentSpacer />
+        <a href="https://github.com/anezih/mobi2stardict" style="text-decoration:none; color: var(--fill-color);" target="_blank">Source Code</a>
+        <SiteSettings />
+    </FluentHeader>
+    <FluentStack Class="main" Orientation="Orientation.Horizontal" Width="100%">
+        <FluentMenuProvider />
+        <FluentDialogProvider />
+        <FluentBodyContent Class="body-content">
+            <ErrorBoundary>
+                <ChildContent>
+                    <div class="content">
+                        @Body
+                    </div>
+                    <FluentToastProvider MaxToastCount="4" />
+                </ChildContent>
+                <ErrorContent Context="ex">
+                    <div class="blazor-error-boundary">@ex.Message</div>
+                </ErrorContent>
+            </ErrorBoundary>
+        </FluentBodyContent>
+    </FluentStack>
+</FluentLayout>

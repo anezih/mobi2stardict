@@ -1,6 +1,5 @@
 ﻿using MobiDict.Reader;
 using StarDictNet;
-using System.IO;
 using System.Text;
 
 namespace MobiDict.Converter;
