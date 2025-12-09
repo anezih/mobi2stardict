@@ -1,7 +1,9 @@
 <Solution>
-  <Project Path="../StarDictNet/StarDictNet/StarDictNet.csproj" />
-  <Project Path="MobiDict.Blazor/MobiDict.Blazor.csproj" Id="54d5b6d3-60d8-4e78-bada-f5102084f37b" />
+  <Project Path="../StarDictNet/StarDictNet/StarDictNet.csproj">
+    <Build Solution="Debug|*" Project="false" />
+  </Project>
   <Project Path="MobiDict.Converter/MobiDict.Converter.csproj" Id="d4f91e59-c24d-441b-817e-579a27c13569" />
   <Project Path="MobiDict.Reader/MobiDict.Reader.csproj" />
+  <Project Path="MobiDict.Uno/MobiDict.Uno.csproj" />
   <Project Path="MobiDictReader.Cli/MobiDictReader.Cli.csproj" />
 </Solution>

@@ -376,7 +376,7 @@ public class DictionaryReader
         var (controlByteCount, tagTable) = ReadTagSection((int)tagSectionStart, data);
         var orthIndexCount = idxhdr["count"];
         hasEntryLength = HasTag(tagTable, 0x02);
-        for (int i = (int)(mobiHeader.MetaOrthIndex + 1); i < mobiHeader.MetaOrthIndex + 1 + orthIndexCount + 1; i++)
+        for (int i = (int)(mobiHeader.MetaOrthIndex + 1); i < mobiHeader.MetaOrthIndex + 1 + orthIndexCount; i++)
         {
             data = sectionizer.LoadSection(i);
             var (hdrinfo, ordt1, ordt2) = ParseHeader(data);
