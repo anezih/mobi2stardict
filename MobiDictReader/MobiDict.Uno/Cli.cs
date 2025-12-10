@@ -18,13 +18,13 @@ public static class Cli
     private static async Task TsvTask(MobiHeader mh, List<DictionaryEntry> entries, string outFolder)
     {
         var tsv = MobiDict.Converter.Converter.ToTsv(mh, entries);
-        File.WriteAllBytes(Path.Combine(outFolder, tsv.FileName), tsv.File);
+        await File.WriteAllBytesAsync(Path.Combine(outFolder, tsv.FileName), tsv.File);
     }
 
     private static async Task StardictTask(MobiHeader mh, List<DictionaryEntry> entries, string outFolder)
     {
         var stardict = MobiDict.Converter.Converter.ToStarDict(mh, entries);
-        File.WriteAllBytes(Path.Combine(outFolder, stardict.FileName), stardict.File);
+        await File.WriteAllBytesAsync(Path.Combine(outFolder, stardict.FileName), stardict.File);
     }
 
     /// <summary>
