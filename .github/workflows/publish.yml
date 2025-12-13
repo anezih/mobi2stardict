@@ -1,5 +1,5 @@
 
-name: Cli
+name: Publish
 on:
   release:
     types: [published]
@@ -9,14 +9,11 @@ jobs:
     name: Release
     strategy:
       matrix:
-        kind: ['linux', 'linux-arm64', 'windows', 'windows-arm64', 'macOS-arm64']
+        kind: ['linux', 'windows', 'windows-arm64', 'macOS-arm64']
         include:
           - kind: linux
             os: ubuntu-latest
             target: linux-x64
-          - kind: linux-arm64
-            os: ubuntu-latest
-            target: linux-arm64
           - kind: windows
             os: windows-latest
             target: win-x64
