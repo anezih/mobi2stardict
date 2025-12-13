@@ -28,16 +28,15 @@
                         Margin="8" />
         
             <Grid Grid.Row="1"
-                  ColumnDefinitions="Auto,Auto,Auto,Auto" 
-                  RowDefinitions="Auto,Auto"
+                  ColumnDefinitions="Auto,Auto,Auto,*"
                   ColumnSpacing="8"
                   RowSpacing="8"
                   Margin="8"
-                  HorizontalAlignment="Left"
                   VerticalAlignment="Top">
-		        <atom:Button Grid.Row="0" Grid.Column="0" Content="Select MOBI Dictionary" Command="{Binding ReadCommand}" />
-                <atom:Button Grid.Row="0" Grid.Column="1" Content="Save as TSV" Command="{Binding ToTsvCommand}" />
-                <atom:Button Grid.Row="0" Grid.Column="2" Content="Save as StarDict" Command="{Binding ToStarDictCommand}" />
+		        <atom:Button Grid.Column="0" Content="Select MOBI Dictionary" Command="{Binding ReadCommand}" />
+                <atom:Button Grid.Column="1" Content="Save as TSV" Command="{Binding ToTsvCommand}" />
+                <atom:Button Grid.Column="2" Content="Save as StarDict" Command="{Binding ToStarDictCommand}" />
+                <atom:HyperLinkButton Grid.Column="3" HorizontalAlignment="Right" NavigateUri="https://github.com/anezih/mobi2stardict">Source Code</atom:HyperLinkButton>
             </Grid>
 
             <Grid Grid.Row="2"
@@ -72,7 +71,7 @@
                     </atom:DataGrid>
                 </atom:Expander>
 
-                <atom:Expander Grid.Row="1" Header="Dictionary Entries" IsVisible="{Binding IsMetadataTableVisible}" IsExpanded="True" ContentPadding="8">
+                <atom:Expander Grid.Row="1" Header="Dictionary Entries" IsVisible="{Binding IsMetadataTableVisible}" IsExpanded="True">
                     <Grid RowDefinitions="Auto,Auto,Auto,*">
                         <atom:TextBox Grid.Row="0" Text="{Binding HeaderFilter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Watermark="Filter by Header and Inflections" BorderThickness="1" BorderBrush="DarkGray" CornerRadius="4" Margin="4" />
                         <atom:TextBlock Grid.Row="1" Text="{Binding FilteredPreviewTable.Count, StringFormat=Total: {0:N0}}" Margin="4" HorizontalAlignment="Right" />

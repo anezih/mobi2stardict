@@ -52,13 +52,14 @@ public partial class Converter
         return new Result($"{fileName}.tsv", memoryStream.ToArray());
     }
 
-    public static Result ToStarDict(MobiHeader mh, List<DictionaryEntry> entries)
+    public static Result ToStarDict(MobiHeader mh, List<DictionaryEntry> entries, bool preprocessDefinitions = true)
     {
         var fileName = SafeFileName(mh.Title);
-        StarDictPreprocess(entries);
+        if (preprocessDefinitions )
+            StarDictPreprocess(entries);
         var outputEntries = entries.Select(x => x.Inflections!.Count > 0
-            ? new OutputEntry(x.Header!, x.Definition!, x.Inflections.ToHashSet())
-            : new OutputEntry(x.Header!, x.Definition!))
+            ? new OutputEntry(x.Header!.Trim(), x.Definition!, x.Inflections.Select(x => x.Trim()).ToHashSet())
+            : new OutputEntry(x.Header!.Trim(), x.Definition!))
             .ToList();
         var zipMs = StarDictNet.StarDictNet.Write(outputEntries, fileName, mh.Title, string.Join(", ", mh.Creator), string.Join(", ", mh.Description));
         return new Result($"{fileName}.zip", zipMs.ToArray());
