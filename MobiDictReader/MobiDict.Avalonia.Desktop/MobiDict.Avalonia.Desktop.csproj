@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+	  <DisableWinExeOutputInference>true</DisableWinExeOutputInference>
+    <!--If you are willing to use Windows/MacOS native APIs you will need to create 3 projects.
+    One for Windows with net8.0-windows TFM, one for MacOS with net8.0-macos and one with net8.0 TFM for Linux.-->
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+	<RepositoryUrl>https://github.com/anezih/mobi2stardict</RepositoryUrl>
+	<Authors>https://github.com/anezih/mobi2stardict</Authors>
+	<Description>Convert MOBI dictionaries to TSV and StarDict formats.</Description>
+	<Version>1.0.0</Version>
+	<PublishSingleFile>true</PublishSingleFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.9" />
+    <PackageReference Include="System.Text.Encoding.CodePages" Version="10.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MobiDict.Avalonia\MobiDict.Avalonia.csproj" />
+    <ProjectReference Include="..\MobiDict.Converter\MobiDict.Converter.csproj" />
+    <ProjectReference Include="..\MobiDict.Reader\MobiDict.Reader.csproj" />
+  </ItemGroup>
+</Project>

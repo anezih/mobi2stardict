@@ -1,0 +1,72 @@
+
+name: Cli
+on:
+  release:
+    types: [published]
+
+jobs:
+  release:
+    name: Release
+    strategy:
+      matrix:
+        kind: ['linux', 'linux-arm64', 'windows', 'windows-arm64', 'macOS-arm64']
+        include:
+          - kind: linux
+            os: ubuntu-latest
+            target: linux-x64
+          - kind: linux-arm64
+            os: ubuntu-latest
+            target: linux-arm64
+          - kind: windows
+            os: windows-latest
+            target: win-x64
+          - kind: windows-arm64
+            os: windows-latest
+            target: win-arm64
+          - kind: macOS-arm64
+            os: macos-latest
+            target: osx-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build
+        shell: bash
+        run: |
+          tag=$(git describe --tags --abbrev=0)
+          release_name_gui="MobiDict.Avalonia-$tag-${{ matrix.target }}"
+          release_name_cli="MobiDict.Cli-$tag-${{ matrix.target }}"
+
+          # Build Avalonia GUI
+          dotnet publish ./MobiDictReader/MobiDict.Avalonia.Desktop/MobiDict.Avalonia.Desktop.csproj -c Release -r "${{ matrix.target }}" -o "$release_name_gui" -p:PublishSingleFile=true -p:DebugSymbols=false -p:SelfContained=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:CopyOutputSymbolsToPublishDirectory=false
+
+          # Build Cli
+          dotnet publish ./MobiDictReader/MobiDict.Cli/MobiDict.Cli.csproj -c Release -r "${{ matrix.target }}" -o "$release_name_cli" -p:PublishSingleFile=true -p:DebugSymbols=false -p:SelfContained=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:CopyOutputSymbolsToPublishDirectory=false
+
+          # Pack files
+          if [[ "${{ matrix.target }}" == "win-x64" || "${{ matrix.target }}" == "win-arm64" ]]; then
+            # Pack to zip for Windows
+            7z a -tzip "${release_name_gui}.zip" "./${release_name_gui}/*"
+            7z a -tzip "${release_name_cli}.zip" "./${release_name_cli}/*"
+          else
+          tar czvf "${release_name_gui}.tar.gz" "$release_name_gui"
+          tar czvf "${release_name_cli}.tar.gz" "$release_name_cli"
+          fi
+
+          # Delete output directory
+          rm -r "$release_name_gui"
+          rm -r "$release_name_cli"
+
+      - name: Publish
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "MobiDict*"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
