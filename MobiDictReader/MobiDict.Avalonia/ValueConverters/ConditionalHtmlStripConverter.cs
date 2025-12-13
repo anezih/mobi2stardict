@@ -12,7 +12,6 @@ public partial class ConditionalHtmlStripConverter : IMultiValueConverter
 
     public object Convert(IList<object?> values, Type targetType, object? parameter, CultureInfo culture)
     {
-        // Gelen değerleri kontrol et
         if (values.Count < 2 || !(values[0] is string htmlString) || !(values[1] is bool isStripChecked))
         {
             return string.Empty;

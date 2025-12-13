@@ -71,7 +71,6 @@ public partial class MainViewModel : ObservableObject, IDialogParticipant
                 return PreviewTable;
             }
 
-            // Aksi takdirde, filtreleme işlemini yap
             ObservableCollection<DictionaryEntry> filtered = new(
                 PreviewTable
                     .Where(item => item.Header!.Contains(HeaderFilter, StringComparison.OrdinalIgnoreCase) 
