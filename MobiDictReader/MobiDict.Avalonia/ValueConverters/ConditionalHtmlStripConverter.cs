@@ -8,10 +8,8 @@ namespace MobiDict.Avalonia.ValueConverters;
 
 public partial class ConditionalHtmlStripConverter : IMultiValueConverter
 {
-    // HTML etiketlerini temizlemek için Regex
     private static readonly Regex HtmlStripRegex = HtmlRegex();
 
-    // IValueConverter yerine IMultiValueConverter kullanılır
     public object Convert(IList<object?> values, Type targetType, object? parameter, CultureInfo culture)
     {
         // Gelen değerleri kontrol et
