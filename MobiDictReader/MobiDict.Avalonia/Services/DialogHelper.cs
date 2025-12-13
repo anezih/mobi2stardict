@@ -42,8 +42,8 @@ public static class DialogHelper
         return storageFiles;
     }
 
-    public static async Task<IStorageFile?> SaveFileDialogAsync(this IDialogParticipant? context, string? title = null, string? suggestedFileName = "file",
-        string? extension = "*.txt")
+    public static async Task<IStorageFile?> SaveFileDialogAsync(this IDialogParticipant? context, string? title = null, string? suggestedFileName = "Untitled",
+        string fileTypeName = "Untitled", string fileType = "*.txt")
     {
         ArgumentNullException.ThrowIfNull(context);
 
@@ -51,14 +51,14 @@ public static class DialogHelper
         var topLevel = DialogManager.GetTopLevelForContext(context)
                        ?? throw new InvalidOperationException("No TopLevel was resolved for the given context.");
 
+        var filePickerFileType = new FilePickerFileType(fileTypeName) { Patterns = [fileType] };
         var options = new FilePickerSaveOptions()
         {
             Title = title ?? "Select any file(s)",
-            DefaultExtension = extension,
             SuggestedFileName = suggestedFileName,
             ShowOverwritePrompt = true,
-            SuggestedFileType = new FilePickerFileType(extension),
-            FileTypeChoices = [new FilePickerFileType(extension)],
+            SuggestedFileType = filePickerFileType,
+            FileTypeChoices = [filePickerFileType],
         };
 
         var file = await topLevel.StorageProvider.SaveFilePickerAsync(options);

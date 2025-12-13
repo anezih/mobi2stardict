@@ -33,20 +33,24 @@ public partial class MainViewModel : ObservableObject, IDialogParticipant
     private List<DictionaryEntry> dictionaryEntries = [];
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FilteredPreviewTable))]
     private ObservableCollection<DictionaryEntry> previewTable = [];
 
     [ObservableProperty]
     private ObservableCollection<Metadata> metadata = [];
 
     [ObservableProperty]
-    private string mobiPath = string.Empty;
+    private string mobiPath = "";
 
     [ObservableProperty]
     private string errorMessage = "";
 
     [ObservableProperty]
+    private string busyText = "";
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(FilteredPreviewTable))]
-    private string headerFilter = string.Empty;
+    private string headerFilter = "";
 
     [ObservableProperty]
     private bool isErrorMessageVisible = false;
@@ -95,6 +99,7 @@ public partial class MainViewModel : ObservableObject, IDialogParticipant
     public async Task Read()
     {
         IsBusy = true;
+        BusyText = "Reading MOBI Dictionary...";
         try
         {
             var results = await this.OpenFileDialogAsync("Open MOBI dictionary", false, fileTypes: new[] { FileTypes });
@@ -126,12 +131,10 @@ public partial class MainViewModel : ObservableObject, IDialogParticipant
                 return;
             }
             var dictionaryReader = new DictionaryReader(mobiHeader, section);
-            DictionaryEntries = await Task.Run(() => dictionaryReader.GetEntries());
+            var entries = await Task.Run(() => dictionaryReader.GetEntries());
+            DictionaryEntries = entries;
             PreviewTable.Clear();
-            foreach (var item in DictionaryEntries)
-            {
-                PreviewTable.Add(item);
-            }
+            PreviewTable = new(entries);
             SetMetadata(mobiHeader);
         }
         catch (Exception ex)
@@ -143,6 +146,7 @@ public partial class MainViewModel : ObservableObject, IDialogParticipant
         finally
         {
             IsBusy = false;
+            BusyText = "";
         }
     }
 
@@ -152,12 +156,13 @@ public partial class MainViewModel : ObservableObject, IDialogParticipant
         ErrorMessage = string.Empty;
         IsErrorMessageVisible = false;
         IsBusy = true;
+        BusyText = "Converting to TSV...";
 
         try
         {
             var result = await Task.Run(() => MobiDict.Converter.Converter.ToTsv(mobiHeader!, DictionaryEntries));
 
-            var saveFile = await this.SaveFileDialogAsync("Save as TSV", suggestedFileName: result.FileName, extension: "*.tsv");
+            var saveFile = await this.SaveFileDialogAsync("Save as TSV", suggestedFileName: result.FileName, fileTypeName: "Tab Separated Values", fileType: "*.tsv");
             if (saveFile is null)
                 return;
             await using (Stream stream = await saveFile.OpenWriteAsync())
@@ -174,6 +179,7 @@ public partial class MainViewModel : ObservableObject, IDialogParticipant
         finally
         {
             IsBusy = false;
+            BusyText = "";
         }
     }
 
@@ -183,11 +189,12 @@ public partial class MainViewModel : ObservableObject, IDialogParticipant
         ErrorMessage = string.Empty;
         IsErrorMessageVisible = false;
         IsBusy = true;
+        BusyText = "Converting to StarDict...";
 
         try
         {
             var result = await Task.Run(() => MobiDict.Converter.Converter.ToStarDict(mobiHeader!, DictionaryEntries));
-            var saveFile = await this.SaveFileDialogAsync("Save as StarDict", suggestedFileName: result.FileName, extension: "*.zip");
+            var saveFile = await this.SaveFileDialogAsync("Save as StarDict", suggestedFileName: result.FileName, fileTypeName: "Zip Archive", fileType: "*.zip");
             if (saveFile is null)
                 return;
             await using (Stream stream = await saveFile.OpenWriteAsync())
@@ -204,6 +211,7 @@ public partial class MainViewModel : ObservableObject, IDialogParticipant
         finally
         {
             IsBusy = false;
+            BusyText = "";
         }
     }
 
