@@ -4,6 +4,9 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+	<RepositoryUrl>https://github.com/anezih/mobi2stardict</RepositoryUrl>
+	<Authors>https://github.com/anezih/mobi2stardict</Authors>
+	<Version>1.0.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

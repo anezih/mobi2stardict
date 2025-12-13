@@ -2,7 +2,9 @@
   <Project Path="../StarDictNet/StarDictNet/StarDictNet.csproj">
     <Build Solution="Debug|*" Project="false" />
   </Project>
+  <Project Path="MobiDict.Avalonia.Desktop/MobiDict.Avalonia.Desktop.csproj" />
+  <Project Path="MobiDict.Avalonia/MobiDict.Avalonia.csproj" />
+  <Project Path="MobiDict.Cli/MobiDict.Cli.csproj" Id="a57d8636-d55b-44bb-9ec6-0cd59562972a" />
   <Project Path="MobiDict.Converter/MobiDict.Converter.csproj" Id="d4f91e59-c24d-441b-817e-579a27c13569" />
   <Project Path="MobiDict.Reader/MobiDict.Reader.csproj" />
-  <Project Path="MobiDict.Uno/MobiDict.Uno.csproj" />
 </Solution>

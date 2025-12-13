@@ -1,0 +1,142 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:atom="using:AtomUI.Desktop.Controls"
+             xmlns:services="using:MobiDict.Avalonia.Services"
+             xmlns:vm="clr-namespace:MobiDict.Avalonia.ViewModels"
+             xmlns:vc="using:MobiDict.Avalonia.ValueConverters"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="MobiDict.Avalonia.Views.MainView"
+             x:DataType="vm:MainViewModel"
+             x:CompileBindings="True"
+             services:DialogManager.Register="{Binding}">
+  <Design.DataContext>
+    <!-- This only sets the DataContext for the previewer in an IDE,
+         to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
+    <vm:MainViewModel />
+  </Design.DataContext>
+    <UserControl.Resources>
+        <vc:ConditionalHtmlStripConverter x:Key="ConditionalHtmlStripper" />
+    </UserControl.Resources>
+    <Grid RowDefinitions="Auto,Auto,Auto"
+          RowSpacing="8">
+        <atom:Alert IsVisible="{Binding IsErrorMessageVisible}"
+                    Description="{Binding ErrorMessage}"
+                    Type="Error"
+                    Margin="8" />
+        
+        <Grid Grid.Row="0"
+              ColumnDefinitions="Auto,Auto,Auto,Auto" 
+              RowDefinitions="Auto,Auto"
+              ColumnSpacing="8"
+              RowSpacing="8"
+              Margin="8"
+              HorizontalAlignment="Left"
+              VerticalAlignment="Top">
+		    <atom:Button Grid.Row="0" Grid.Column="0" Content="Select MOBI Dictionary" Command="{Binding ReadCommand}" />
+            <atom:Button Grid.Row="0" Grid.Column="1" Content="Save as TSV" Command="{Binding ToTsvCommand}" />
+            <atom:Button Grid.Row="0" Grid.Column="2" Content="Save as StarDict" Command="{Binding ToStarDictCommand}" />
+        </Grid>
+
+        <Grid Grid.Row="1"
+              ColumnDefinitions="*"
+              RowDefinitions="*,*"
+              ColumnSpacing="8"
+              RowSpacing="8"
+              Margin="8"
+              HorizontalAlignment="Stretch"
+              VerticalAlignment="Stretch">
+            
+            <atom:Expander Grid.Row="0" Header="Metadata" IsVisible="{Binding IsMetadataTableVisible}" IsExpanded="{Binding IsMetadataTableVisible}">
+                <atom:DataGrid x:Name="MetadataTable"
+                               ItemsSource="{Binding Metadata}"
+                               CanUserResizeColumns="True">
+		            <atom:DataGrid.Columns>
+                        <atom:DataGridTextColumn Header="Key" Binding="{Binding Key}" CanUserResize="True" />
+                        <atom:DataGridTemplateColumn Header="Value" CanUserResize="True" Width="*">
+                                <atom:DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+										<TextBlock TextWrapping="Wrap" MaxWidth="{Binding $parent[atom:DataGridCell].Bounds.Width}" Text="{Binding Value}" />
+                                    </DataTemplate>
+                                </atom:DataGridTemplateColumn.CellTemplate>
+                            </atom:DataGridTemplateColumn>
+                    </atom:DataGrid.Columns>
+                </atom:DataGrid>
+            </atom:Expander>
+
+            <atom:Expander Grid.Row="1" Header="Dictionary Entries" IsVisible="{Binding IsMetadataTableVisible}" IsExpanded="{Binding IsMetadataTableVisible}" ContentPadding="8">
+                <Grid RowDefinitions="Auto,Auto,Auto,*">
+                    <atom:TextBox Grid.Row="0" Text="{Binding HeaderFilter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Watermark="Filter by Header and Inflections" BorderThickness="1" BorderBrush="DarkGray" CornerRadius="4" Margin="4" />
+                    <atom:TextBlock Grid.Row="1" Text="{Binding FilteredPreviewTable.Count, StringFormat=Total: {0:N0}}" Margin="4" HorizontalAlignment="Right" />
+                    <atom:CheckBox x:Name="HtmlStripToggle"
+                              Grid.Row="2"
+                              Content="Strip HTML Tags"
+                              IsChecked="True"
+                              Margin="4"/>
+                    <atom:DataGrid x:Name="PreviewTable"
+                                   Grid.Row="3"
+                                   ItemsSource="{Binding FilteredPreviewTable}"
+                                   CanUserResizeColumns="True"
+                                   HorizontalAlignment="Stretch"
+                                   VerticalAlignment="Stretch"
+                                   MinWidth="0"
+                                   MinHeight="0">
+		                <atom:DataGrid.Columns>
+                            <atom:DataGridTextColumn Header="Header" Binding="{Binding Header}" CanUserResize="True" Width="220" CanUserSort="True" />
+                            <atom:DataGridTemplateColumn Header="Inflections" Width="300" CanUserResize="True">
+                                    <atom:DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <ItemsControl ItemsSource="{Binding Inflections}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <WrapPanel HorizontalAlignment="Left" ItemSpacing="6" />
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <atom:Tag TagText="{Binding }"></atom:Tag>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </DataTemplate>
+                                    </atom:DataGridTemplateColumn.CellTemplate>
+                                </atom:DataGridTemplateColumn>
+                            <atom:DataGridTemplateColumn Header="Definition" CanUserResize="True" Width="*" MinWidth="800">
+                                <atom:DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+										<TextBlock TextWrapping="Wrap" MaxWidth="{Binding $parent[atom:DataGridCell].Bounds.Width}">
+                                            <TextBlock.Text>
+                                                <MultiBinding Converter="{StaticResource ConditionalHtmlStripper}">
+                                                    <Binding Path="Definition" />
+                                                    <Binding ElementName="HtmlStripToggle" Path="IsChecked" />
+                                                </MultiBinding>
+                                            </TextBlock.Text>    
+                                        </TextBlock>
+                                    </DataTemplate>
+                                </atom:DataGridTemplateColumn.CellTemplate>
+                            </atom:DataGridTemplateColumn>
+                        </atom:DataGrid.Columns>
+                    </atom:DataGrid>
+                </Grid>
+            </atom:Expander>
+        </Grid>
+
+        <Border Grid.RowSpan="3" 
+                ZIndex="100" 
+                IsVisible="{Binding IsBusy}" 
+                Background="#80FFFFFF"> 
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <ProgressBar IsIndeterminate="True" 
+                                 Width="200" 
+                                 Height="10" 
+                                 Classes="accent" 
+                                 Margin="0,0,0,15"/>
+                
+                    <TextBlock Text="" 
+                               Foreground="Black" 
+                               FontSize="14"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>
