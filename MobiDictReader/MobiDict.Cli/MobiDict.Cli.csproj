@@ -12,6 +12,7 @@
 	<Description>Convert MOBI dictionaries to TSV and StarDict formats.</Description>
 	<Version>1.0.0</Version>
 	<PublishSingleFile>true</PublishSingleFile>
+	<PublishAot>true</PublishAot>
   </PropertyGroup>
 
   <ItemGroup>
