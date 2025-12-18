@@ -2,7 +2,7 @@
 
 public class DictionaryEntry
 {
-    public string? Header { get; set; }
+    public string? Headword { get; set; }
     public List<string>? Inflections { get; set; }
     public string? Definition { get; set; }
 }

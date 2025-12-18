@@ -486,7 +486,7 @@ public class DictionaryReader
                 try
                 {
                     var definition = mobiHeader.Codec.GetString(rawMLSpan[item.StartPos..item.EndPos]);
-                    entries.Add(new DictionaryEntry { Header = item.Header, Inflections = item.Inflections, Definition = definition });
+                    entries.Add(new DictionaryEntry { Headword = item.Header, Inflections = item.Inflections, Definition = definition });
                 }
                 catch (Exception ex)
                 {
@@ -504,14 +504,14 @@ public class DictionaryReader
                 if (startPos > endPos)
                     continue;
                 var definition = mobiHeader.Codec.GetString(rawMLSpan[startPos..endPos]);
-                entries.Add(new DictionaryEntry { Header = sortedPosMap[i].Header, Inflections = sortedPosMap[i].Inflections, Definition = definition });
+                entries.Add(new DictionaryEntry { Headword = sortedPosMap[i].Header, Inflections = sortedPosMap[i].Inflections, Definition = definition });
             }
             
             var last = sortedPosMap[^1];
             if (last.StartPos < rawMLLength)
             {
                 var definition = mobiHeader.Codec.GetString(rawMLSpan[last.StartPos..rawMLLength]);
-                entries.Add(new DictionaryEntry{ Header = last.Header, Inflections = last.Inflections, Definition = definition });
+                entries.Add(new DictionaryEntry{ Headword = last.Header, Inflections = last.Inflections, Definition = definition });
             }
         }
         return entries;

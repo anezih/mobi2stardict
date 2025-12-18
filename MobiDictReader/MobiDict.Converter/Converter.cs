@@ -45,7 +45,7 @@ public partial class Converter
         using var writer = new StreamWriter(memoryStream, Encoding.UTF8, bufferSize: 1024, leaveOpen: true);
         foreach (var item in entries)
         {
-            var line = $"{item.Header!.Trim()}\t{string.Join('|', item.Inflections!)}\t{item.Definition}\n";
+            var line = $"{item.Headword!.Trim()}\t{string.Join('|', item.Inflections!)}\t{item.Definition}\n";
             writer.WriteLine(line);
         }
         writer.Flush();
@@ -58,8 +58,8 @@ public partial class Converter
         if (preprocessDefinitions )
             StarDictPreprocess(entries);
         var outputEntries = entries.Select(x => x.Inflections!.Count > 0
-            ? new OutputEntry(x.Header!.Trim(), x.Definition!, x.Inflections.Select(x => x.Trim()).ToHashSet())
-            : new OutputEntry(x.Header!.Trim(), x.Definition!))
+            ? new OutputEntry(x.Headword!.Trim(), x.Definition!, x.Inflections.Select(x => x.Trim()).ToHashSet())
+            : new OutputEntry(x.Headword!.Trim(), x.Definition!))
             .ToList();
         var zipMs = StarDictNet.StarDictNet.Write(outputEntries, fileName, mh.Title, string.Join(", ", mh.Creator), string.Join(", ", mh.Description));
         return new Result($"{fileName}.zip", zipMs.ToArray());

@@ -50,7 +50,7 @@ public partial class MainViewModel : ObservableObject, IDialogParticipant
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(FilteredPreviewTable))]
-    private string headerFilter = "";
+    private string headwordFilter = "";
 
     [ObservableProperty]
     private bool isErrorMessageVisible = false;
@@ -66,15 +66,15 @@ public partial class MainViewModel : ObservableObject, IDialogParticipant
     {
         get
         {
-            if (string.IsNullOrWhiteSpace(HeaderFilter))
+            if (string.IsNullOrWhiteSpace(HeadwordFilter))
             {
                 return PreviewTable;
             }
 
             ObservableCollection<DictionaryEntry> filtered = new(
                 PreviewTable
-                    .Where(item => item.Header!.Contains(HeaderFilter, StringComparison.OrdinalIgnoreCase) 
-                        || item.Inflections!.Any(inflection => inflection.Contains(HeaderFilter, StringComparison.OrdinalIgnoreCase))
+                    .Where(item => item.Headword!.Contains(HeadwordFilter, StringComparison.OrdinalIgnoreCase) 
+                        || item.Inflections!.Any(inflection => inflection.Contains(HeadwordFilter, StringComparison.OrdinalIgnoreCase))
             ));
 
             return filtered;
@@ -236,6 +236,19 @@ public partial class MainViewModel : ObservableObject, IDialogParticipant
             Metadata.Add(new Metadata { Key = "Published", Value = string.Join(", ", mh.Published) });
         if (mh.Publisher.Count > 0)
             Metadata.Add(new Metadata { Key = "Publisher", Value = string.Join(", ", mh.Publisher) });
+        Metadata.Add(new Metadata { Key = "MOBI Version", Value = $"{mh.Version}" });
+        Metadata.Add(new Metadata
+        {
+            Key = "Compression",
+            Value = mh.Compression switch
+            {
+                17480 => "HUFF/CDIC",
+                2 => "PalmDOC",
+                1 => "No compression",
+                _ => "Unknown compression",
+            }
+        });
+        Metadata.Add(new Metadata { Key = "Encoding", Value = $"{mh.Codec.EncodingName} (Code Page: {mh.CodePage})" });
         Metadata.Add(new Metadata { Key = "Number of Entries", Value = $"{DictionaryEntries.Count:N0}" });
     }
 }

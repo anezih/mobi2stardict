@@ -73,7 +73,7 @@
 
                 <atom:Expander Grid.Row="1" Header="Dictionary Entries" IsVisible="{Binding IsMetadataTableVisible}" IsExpanded="True">
                     <Grid RowDefinitions="Auto,Auto,Auto,*">
-                        <atom:TextBox Grid.Row="0" Text="{Binding HeaderFilter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Watermark="Filter by Header and Inflections" BorderThickness="1" BorderBrush="DarkGray" CornerRadius="4" Margin="4" />
+                        <atom:TextBox Grid.Row="0" Text="{Binding HeadwordFilter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Watermark="Filter by Headword and Inflections" BorderThickness="1" BorderBrush="DarkGray" CornerRadius="4" Margin="4" />
                         <atom:TextBlock Grid.Row="1" Text="{Binding FilteredPreviewTable.Count, StringFormat=Total: {0:N0}}" Margin="4" HorizontalAlignment="Right" />
                         <atom:CheckBox x:Name="HtmlStripToggle"
                                   Grid.Row="2"
@@ -89,7 +89,7 @@
                                        MinWidth="0"
                                        MinHeight="0">
 		                    <atom:DataGrid.Columns>
-                                <atom:DataGridTextColumn Header="Header" Binding="{Binding Header}" CanUserResize="True" Width="200" CanUserSort="True" />
+                                <atom:DataGridTextColumn Header="Headword" Binding="{Binding Headword}" CanUserResize="True" Width="200" CanUserSort="True" />
                                 <atom:DataGridTemplateColumn Header="Inflections" Width="250" CanUserResize="True">
                                         <atom:DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
