@@ -15,15 +15,26 @@ public static class Cli
         return path;
     }
 
+    private static string SafeFileName(string fileName, char replacementChar = '_')
+    {
+        var invalidChars = Path.GetInvalidFileNameChars();
+
+        string safeFileName = new string(fileName
+            .Select(c => invalidChars.Contains(c) ? replacementChar : c)
+            .ToArray())
+            .Trim();
+        return safeFileName;
+    }
+
     private static async Task TsvTask(MobiHeader mh, List<DictionaryEntry> entries, string outFolder)
     {
-        var tsv = MobiDict.Converter.Converter.ToTsv(mh, entries);
+        var tsv = Converter.Converter.ToTsv(mh, entries);
         await File.WriteAllBytesAsync(Path.Combine(outFolder, tsv.FileName), tsv.File);
     }
 
-    private static async Task StardictTask(MobiHeader mh, List<DictionaryEntry> entries, string outFolder)
+    private static async Task StardictTask(MobiHeader mh, List<DictionaryEntry> entries, List<string> imageNames, string outFolder)
     {
-        var stardict = MobiDict.Converter.Converter.ToStarDict(mh, entries);
+        var stardict = Converter.Converter.ToStarDict(mh, entries, imageNames);
         await File.WriteAllBytesAsync(Path.Combine(outFolder, stardict.FileName), stardict.File);
     }
 
@@ -59,6 +70,8 @@ public static class Cli
             }
             var dict = new DictionaryReader(mh, section);
             var entries = dict.GetEntries();
+            var resources = dict.GetResources();
+            var imageNames = resources.Select(x => x.FileName!).ToList();
             List<Task> tasks = new(2);
             if (Tsv)
             {
@@ -66,9 +79,20 @@ public static class Cli
             }
             if (Stardict)
             {
-                tasks.Add(Task.Run(() => StardictTask(mh, entries, outFolder)));
+                tasks.Add(Task.Run(() => StardictTask(mh, entries, imageNames, outFolder)));
             }
             await Task.WhenAll(tasks);
+            if (resources.Count > 0)
+            {
+                var title = SafeFileName(mh.Title);
+                var resPath = Path.Combine(outFolder, $"{title}_res");
+                if (!Directory.Exists(resPath))
+                    Directory.CreateDirectory(resPath);
+                foreach (var item in resources)
+                {
+                    await File.WriteAllBytesAsync(Path.Combine(resPath, item.FileName!), item.Bytes!);
+                }
+            }
         }
         catch (Exception ex)
         {

@@ -57,6 +57,25 @@ public class MobiHeader
     public uint MetaOrthIndex => metaOrthIndex;
     public uint MetaInflIndex => metaInflIndex;
 
+    internal uint FirstImageIndex => GetFirstImageIndex();
+    internal uint FirstNonTextIndex => GetFirstNonTextIndex();
+
+    private uint GetFirstImageIndex()
+    {
+        var offset = BinaryPrimitives.ReadUInt32BigEndian(header.AsSpan(0x6C));
+        if (offset != 0xFFFFFFFF)
+            return offset + (uint)this.sectionNumber;
+        return 0xFFFFFFFF;
+    }
+
+    private uint GetFirstNonTextIndex()
+    {
+        var offset = BinaryPrimitives.ReadUInt32BigEndian(header.AsSpan(0x50));
+        if (offset != 0xFFFFFFFF)
+            return offset + (uint)this.sectionNumber;
+        return 0xFFFFFFFF;
+    }
+
     private string GetTitle()
     {
         var titleOffset = BinaryPrimitives.ReadUInt32BigEndian(header.AsSpan(84));

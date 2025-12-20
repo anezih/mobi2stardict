@@ -22,7 +22,7 @@ public class Metadata
 public partial class MainViewModel : ObservableObject, IDialogParticipant
 {
     private MobiHeader? mobiHeader;
-
+    private List<Resource> resources = [];
     private static FilePickerFileType FileTypes { get; } = new("Kindle Dictionary Files")
     {
         Patterns = new[] { "*.mobi", "*.azw" }
@@ -131,6 +131,7 @@ public partial class MainViewModel : ObservableObject, IDialogParticipant
             }
             var dictionaryReader = new DictionaryReader(mobiHeader, section);
             var entries = await Task.Run(() => dictionaryReader.GetEntries());
+            resources = await Task.Run(() => dictionaryReader.GetResources());
             DictionaryEntries = entries;
             PreviewTable.Clear();
             PreviewTable = new(entries);
@@ -168,6 +169,18 @@ public partial class MainViewModel : ObservableObject, IDialogParticipant
             {
                 await stream.WriteAsync(result.File);
             }
+            if (resources.Count > 0)
+            {
+                var title = Path.GetFileNameWithoutExtension(result.FileName);
+                var parentFolder = (await saveFile.GetParentAsync())!.TryGetLocalPath()!;
+                var resPath = Path.Combine(parentFolder, $"{title}_res");
+                if (!Directory.Exists(resPath))
+                    Directory.CreateDirectory(resPath);
+                foreach (var item in resources)
+                {
+                    await File.WriteAllBytesAsync(Path.Combine(resPath, item.FileName!), item.Bytes!);
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -192,13 +205,25 @@ public partial class MainViewModel : ObservableObject, IDialogParticipant
 
         try
         {
-            var result = await Task.Run(() => MobiDict.Converter.Converter.ToStarDict(mobiHeader!, DictionaryEntries));
+            var result = await Task.Run(() => MobiDict.Converter.Converter.ToStarDict(mobiHeader!, DictionaryEntries, resources.Select(x => x.FileName!).ToList()));
             var saveFile = await this.SaveFileDialogAsync("Save as StarDict", suggestedFileName: result.FileName, fileTypeName: "Zip Archive", fileType: "*.zip");
             if (saveFile is null)
                 return;
             await using (Stream stream = await saveFile.OpenWriteAsync())
             {
                 await stream.WriteAsync(result.File);
+            }
+            if (resources.Count > 0)
+            {
+                var title = Path.GetFileNameWithoutExtension(result.FileName);
+                var parentFolder = (await saveFile.GetParentAsync())!.TryGetLocalPath()!;
+                var resPath = Path.Combine(parentFolder, $"{title}_res");
+                if (!Directory.Exists(resPath))
+                    Directory.CreateDirectory(resPath);
+                foreach (var item in resources)
+                {
+                    await File.WriteAllBytesAsync(Path.Combine(resPath, item.FileName!), item.Bytes!);
+                }
             }
         }
         catch (Exception ex)

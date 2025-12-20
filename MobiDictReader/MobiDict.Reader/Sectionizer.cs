@@ -30,7 +30,7 @@ public class Sectionizer
 
     private uint FileLength => (uint)mobiStream.Length;
 
-    private int NumberOfSections => BinaryPrimitives.ReadUInt16BigEndian(PalmHeader.AsSpan(76));
+    internal int NumberOfSections => BinaryPrimitives.ReadUInt16BigEndian(PalmHeader.AsSpan(76));
 
     private List<uint> _SectionOffsets()
     {

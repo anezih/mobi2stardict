@@ -27,7 +27,7 @@ public class DictionaryReader
 
     // If the hasEntryLength is false we will calculate entry length by substracting start pos of n from n+1'th entry.
     private bool hasEntryLength = false;
-    private List<(int StartPos, int EndPos, string Header, List<string> Inflections)> posMap = [];
+    private List<(int StartPos, int EndPos, string Headword, List<string> Inflections)> posMap = [];
 
     public DictionaryReader(MobiHeader mobiHeader, Sectionizer sectionizer)
     {
@@ -395,7 +395,7 @@ public class DictionaryReader
                 var endPos = idxPositions[j + 1];
                 var textLength = data[startPos];
                 var text = data[(startPos + 1)..(startPos + 1 + textLength)];
-                string header = string.Empty;
+                string headWord = mobiHeader.Codec.GetString(text);
                 if (hordt2.Count > 0)
                 {
                     List<char> utext = [];
@@ -425,8 +425,8 @@ public class DictionaryReader
                             pos++;
                         }
                     }
-                    header = new string(utext.ToArray());
-                    text = mobiHeader.Codec.GetBytes(header);
+                    headWord = new string(utext.ToArray());
+                    text = mobiHeader.Codec.GetBytes(headWord);
                 }
                 var tagMap = GetTagMap(controlByteCount, tagTable, data, startPos + 1 + textLength, endPos);
                 List<string> inflections = [];
@@ -441,7 +441,7 @@ public class DictionaryReader
                         }
                         catch (Exception ex)
                         {
-                            Debug.WriteLine($"Warning: Could not get inflections for {header}. Exception: {ex}");
+                            Debug.WriteLine($"Warning: Could not get inflections for {headWord}. Exception: {ex}");
                         }
                         
                     }
@@ -455,16 +455,16 @@ public class DictionaryReader
                         if (isLenghAvailable && len != null && len.Count > 0)
                         {
                             var entryEndPosition = entryStartPosition + len[0];
-                            posMap.Add((entryStartPosition, entryEndPosition, header, inflections));
+                            posMap.Add((entryStartPosition, entryEndPosition, headWord, inflections));
                         }
                         else
                         {
-                            Debug.WriteLine($"Warning: Could not get entry length from tagMap[0x02] for {header}");
+                            Debug.WriteLine($"Warning: Could not get entry length from tagMap[0x02] for {headWord}");
                         }
                     }
                     else
                     {
-                        posMap.Add((entryStartPosition, -1, header, inflections));
+                        posMap.Add((entryStartPosition, -1, headWord, inflections));
                     }
                 }
             }
@@ -486,11 +486,11 @@ public class DictionaryReader
                 try
                 {
                     var definition = mobiHeader.Codec.GetString(rawMLSpan[item.StartPos..item.EndPos]);
-                    entries.Add(new DictionaryEntry { Headword = item.Header, Inflections = item.Inflections, Definition = definition });
+                    entries.Add(new DictionaryEntry { Headword = item.Headword, Inflections = item.Inflections, Definition = definition });
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"Error: Could not get definition with startPos: {item.StartPos} and endPos: {item.EndPos} for {item.Header}. Exception: {ex}");
+                    Debug.WriteLine($"Error: Could not get definition with startPos: {item.StartPos} and endPos: {item.EndPos} for {item.Headword}. Exception: {ex}");
                 }
             }
         }
@@ -504,16 +504,75 @@ public class DictionaryReader
                 if (startPos > endPos)
                     continue;
                 var definition = mobiHeader.Codec.GetString(rawMLSpan[startPos..endPos]);
-                entries.Add(new DictionaryEntry { Headword = sortedPosMap[i].Header, Inflections = sortedPosMap[i].Inflections, Definition = definition });
+                entries.Add(new DictionaryEntry { Headword = sortedPosMap[i].Headword, Inflections = sortedPosMap[i].Inflections, Definition = definition });
             }
             
             var last = sortedPosMap[^1];
             if (last.StartPos < rawMLLength)
             {
                 var definition = mobiHeader.Codec.GetString(rawMLSpan[last.StartPos..rawMLLength]);
-                entries.Add(new DictionaryEntry{ Headword = last.Header, Inflections = last.Inflections, Definition = definition });
+                entries.Add(new DictionaryEntry{ Headword = last.Headword, Inflections = last.Inflections, Definition = definition });
             }
         }
         return entries;
+    }
+
+    public List<Resource> GetResources()
+    {
+        var gifMagic = "GIF"u8;
+        var bmpMagic = "BM"u8;
+        ReadOnlySpan<byte> pngMagic = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+        ReadOnlySpan<byte> jpegMagic = [0xFF, 0xD8, 0xFF];
+
+        var beginning = mobiHeader.FirstImageIndex;
+        var end = sectionizer.NumberOfSections;
+        List<Resource> resources = [];
+        if (beginning < 0 || beginning >= end)
+            return resources;
+        for (int i = (int)beginning; i < end; i++)
+        {
+            try
+            {
+                var data = sectionizer.LoadSection(i);
+                if (data.Length < 4)
+                    continue;
+                var type = data.AsSpan()[0..4];
+                if (type.SequenceEqual("FLIS"u8)
+                    || type.SequenceEqual("FCIS"u8)
+                    || type.SequenceEqual("FDST"u8)
+                    || type.SequenceEqual("DATP"u8)
+                    || type.SequenceEqual("SRCS"u8)
+                    || type.SequenceEqual("PAGE"u8)
+                    || type.SequenceEqual("CMET"u8)
+                    || type.SequenceEqual("FONT"u8)
+                    || type.SequenceEqual("CRES"u8)
+                    || type.SequenceEqual("CONT"u8)
+                    || type.SequenceEqual("kind"u8)
+                    || type.SequenceEqual("\xa0\xa0\xa0\xa0"u8)
+                    || type.SequenceEqual("RESC"u8)
+                    || type.SequenceEqual("\xe9\x8e\x0d\x0a"u8)
+                    || type.SequenceEqual("BOUNDARY"u8))
+                    continue;
+                string ext = "";
+                if (data.Length >= gifMagic.Length && data.AsSpan()[0..gifMagic.Length].SequenceEqual(gifMagic))
+                    ext = ".gif";
+                else if (data.Length >= bmpMagic.Length && data.AsSpan()[0..bmpMagic.Length].SequenceEqual(bmpMagic))
+                    ext = ".bmp";
+                else if (data.Length >= pngMagic.Length && data.AsSpan()[0..pngMagic.Length].SequenceEqual(pngMagic))
+                    ext = ".png";
+                else if (data.Length >= jpegMagic.Length && data.AsSpan()[0..jpegMagic.Length].SequenceEqual(jpegMagic))
+                    ext = ".jpeg";
+                if (!string.IsNullOrEmpty(ext))
+                {
+                    string fileName = $"image{i:D5}{ext}";
+                    resources.Add(new Resource { FileName = fileName, Bytes = data });
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Could not extract resource for section: {i}. Exception message: {ex}");
+            }
+        }
+        return resources;
     }
 }
