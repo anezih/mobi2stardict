@@ -337,9 +337,63 @@ public class DictionaryReader
         return infls;
     }
 
+    private InflTrie BuildInflTrie(List<byte[]> inflIndexRecords, Cncx cncx, int controlByteCount, List<int[]> tagTable)
+    {
+        InflTrie trie = new();
+
+        foreach (var rec in inflIndexRecords)
+        {
+            var (hdr, ordt1, ordt2) = ParseHeader(rec);
+            int idxtPos = (int)hdr["start"];
+            int entryCount = (int)hdr["count"];
+
+            List<int> idxPositions = new(entryCount + 1);
+            for (int j = 0; j < entryCount; j++)
+            {
+                int pos = BinaryPrimitives.ReadUInt16BigEndian(rec.AsSpan(idxtPos + 4 + 2 * j));
+                idxPositions.Add(pos);
+            }
+            idxPositions.Add(idxtPos);
+
+            for (int j = 0; j < entryCount; j++)
+            {
+                int startPos = idxPositions[j];
+                int endPos = idxPositions[j + 1];
+                if (startPos >= endPos) continue;
+
+                int textLen = rec[startPos];
+                if (textLen <= 0) continue;
+                if (startPos + 1 + textLen > endPos) continue;
+
+                var inflSuffix = rec.AsSpan(startPos + 1, textLen).ToArray();
+
+                var tagMap = GetTagMap(controlByteCount, tagTable, rec, startPos + 1 + textLen, endPos);
+
+                if (!tagMap.TryGetValue(0x07, out var vals))
+                    continue;
+
+                for (int k = 0; k + 1 < vals.Count; k += 2)
+                {
+                    int len = vals[k];
+                    int off = vals[k + 1];
+
+                    if (len <= 0) continue;
+                    if (!cncx.TrySlice(off, len, out var baseSuffix)) continue;
+                    if (baseSuffix.Length == 0) continue;
+
+                    trie.InsertReversed(baseSuffix, inflSuffix);
+                }
+            }
+        }
+        return trie;
+    }
+
     private void BuildPositionMap()
     {
         bool decodeInflection = true;
+        bool decodeOldInflectionScheme = false;
+        bool decodeNewerInflectionScheme = false;
+        InflTrie? inflTrie = null;
         InflectionData? iData = null;
         byte[]? inflNameData = null;
         int inflectionControlByteCount = -1;
@@ -359,14 +413,28 @@ public class DictionaryReader
             {
                 inflectionData.Add(sectionizer.LoadSection((int)(mobiHeader.MetaInflIndex + 1 + i)));
             }
-            iData = new InflectionData(inflectionData);
-            inflNameData = sectionizer.LoadSection((int)(mobiHeader.MetaInflIndex + 1 + metaIndexCount));
             var inflTagSectionStart = midxhdr["len"];
             (inflectionControlByteCount, inflectionTagTable) = ReadTagSection((int)inflTagSectionStart, metaInflIndexData);
-            if (HasTag(inflectionTagTable, 0x07))
+            if (inflectionTagTable != null && HasTag(inflectionTagTable, 0x07))
             {
-                Debug.WriteLine("Obsolete inflection rule scheme.");
-                decodeInflection = false;
+                decodeOldInflectionScheme = true;
+                decodeNewerInflectionScheme = false;
+
+                var possibleCncxRec = sectionizer.LoadSection((int)(mobiHeader.MetaInflIndex + 1 + metaIndexCount));
+                Cncx cncx = new(possibleCncxRec);
+                inflTrie = BuildInflTrie(inflectionData, cncx, inflectionControlByteCount, inflectionTagTable);
+
+                Debug.WriteLine("[INFL] Dictionary is using the older inflection scheme.");
+            }
+            else
+            {
+                decodeOldInflectionScheme = false;
+                decodeNewerInflectionScheme = true;
+
+                iData = new InflectionData(inflectionData);
+                inflNameData = sectionizer.LoadSection((int)(mobiHeader.MetaInflIndex + 1 + metaIndexCount));
+
+                Debug.WriteLine("[INFL] Dictionary is using the newer inflection scheme.");
             }
         }
 
@@ -432,7 +500,7 @@ public class DictionaryReader
                 List<string> inflections = [];
                 if (tagMap.ContainsKey(0x01))
                 {
-                    if (decodeInflection && tagMap.ContainsKey(0x2A))
+                    if (decodeInflection && decodeNewerInflectionScheme && tagMap.ContainsKey(0x2A))
                     {
                         try
                         {
@@ -443,7 +511,21 @@ public class DictionaryReader
                         {
                             Debug.WriteLine($"Warning: Could not get inflections for {headWord}. Exception: {ex}");
                         }
-                        
+                    }
+                    else if (decodeInflection && decodeOldInflectionScheme && inflTrie != null)
+                    {
+                        try
+                        {
+                            var inflBytes = inflTrie.GetInflGroups(text);
+                            HashSet<string> set = new(StringComparer.Ordinal);
+                            foreach (var b in inflBytes)
+                                set.Add(mobiHeader.Codec.GetString(b));
+                            inflections = set.ToList();
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"Warning: Could not get inflections for {headWord} in older inflection scheme. Exception: {ex}");
+                        }
                     }
 
                     var entryStartPosition = tagMap[0x01][0];
