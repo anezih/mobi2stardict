@@ -15,17 +15,6 @@ public static class Cli
         return path;
     }
 
-    private static string SafeFileName(string fileName, char replacementChar = '_')
-    {
-        var invalidChars = Path.GetInvalidFileNameChars();
-
-        string safeFileName = new string(fileName
-            .Select(c => invalidChars.Contains(c) ? replacementChar : c)
-            .ToArray())
-            .Trim();
-        return safeFileName;
-    }
-
     private static async Task TsvTask(MobiHeader mh, List<DictionaryEntry> entries, string outFolder)
     {
         var tsv = Converter.Converter.ToTsv(mh, entries);
@@ -34,8 +23,7 @@ public static class Cli
 
     private static async Task StardictTask(MobiHeader mh, List<DictionaryEntry> entries, List<string> imageNames, string outFolder)
     {
-        var stardict = Converter.Converter.ToStarDict(mh, entries, imageNames);
-        await File.WriteAllBytesAsync(Path.Combine(outFolder, stardict.FileName), stardict.File);
+        await Converter.Converter.ToStarDict(mh, entries, imageNames, outFolder);
     }
 
     /// <summary>
@@ -84,8 +72,7 @@ public static class Cli
             await Task.WhenAll(tasks);
             if (resources.Count > 0)
             {
-                var title = SafeFileName(mh.Title);
-                var resPath = Path.Combine(outFolder, $"{title}_res");
+                var resPath = Path.Combine(outFolder, "res");
                 if (!Directory.Exists(resPath))
                     Directory.CreateDirectory(resPath);
                 foreach (var item in resources)

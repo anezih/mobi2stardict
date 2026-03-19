@@ -1,5 +1,4 @@
 ﻿using Avalonia.Platform.Storage;
-using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MobiDict.Avalonia.Services;
@@ -169,18 +168,6 @@ public partial class MainViewModel : ObservableObject, IDialogParticipant
             {
                 await stream.WriteAsync(result.File);
             }
-            if (resources.Count > 0)
-            {
-                var title = Path.GetFileNameWithoutExtension(result.FileName);
-                var parentFolder = (await saveFile.GetParentAsync())!.TryGetLocalPath()!;
-                var resPath = Path.Combine(parentFolder, $"{title}_res");
-                if (!Directory.Exists(resPath))
-                    Directory.CreateDirectory(resPath);
-                foreach (var item in resources)
-                {
-                    await File.WriteAllBytesAsync(Path.Combine(resPath, item.FileName!), item.Bytes!);
-                }
-            }
         }
         catch (Exception ex)
         {
@@ -205,19 +192,15 @@ public partial class MainViewModel : ObservableObject, IDialogParticipant
 
         try
         {
-            var result = await Task.Run(() => MobiDict.Converter.Converter.ToStarDict(mobiHeader!, DictionaryEntries, resources.Select(x => x.FileName!).ToList()));
-            var saveFile = await this.SaveFileDialogAsync("Save as StarDict", suggestedFileName: result.FileName, fileTypeName: "Zip Archive", fileType: "*.zip");
-            if (saveFile is null)
+            var folders = await this.PickFolderAsync("Pick a folder to save StarDict files.");
+            if (folders is null || folders.Count == 0)
                 return;
-            await using (Stream stream = await saveFile.OpenWriteAsync())
-            {
-                await stream.WriteAsync(result.File);
-            }
+            var folder = folders.First();
+            var path = folder.Path.AbsolutePath;
+            await Task.Run(() => MobiDict.Converter.Converter.ToStarDict(mobiHeader!, DictionaryEntries, resources.Select(x => x.FileName!).ToList(), path));
             if (resources.Count > 0)
             {
-                var title = Path.GetFileNameWithoutExtension(result.FileName);
-                var parentFolder = (await saveFile.GetParentAsync())!.TryGetLocalPath()!;
-                var resPath = Path.Combine(parentFolder, $"{title}_res");
+                var resPath = Path.Combine(path, "res");
                 if (!Directory.Exists(resPath))
                     Directory.CreateDirectory(resPath);
                 foreach (var item in resources)

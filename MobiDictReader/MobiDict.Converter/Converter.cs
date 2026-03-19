@@ -1,5 +1,5 @@
 ﻿using MobiDict.Reader;
-using StarDictNet;
+using StarDictNet.Core;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -11,6 +11,8 @@ public partial class Converter
 {
     private static Regex filePosRegex = FilePosRegex();
     private static Regex imageRegex = ImageRegex();
+    private readonly static Encoding encoding = new UTF8Encoding(false);
+
     private static string SafeFileName(string fileName, char replacementChar = '_')
     {
         var invalidChars = Path.GetInvalidFileNameChars();
@@ -59,27 +61,28 @@ public partial class Converter
     {
         var fileName = SafeFileName(mh.Title);
         using var memoryStream = new MemoryStream();
-        using var writer = new StreamWriter(memoryStream, Encoding.UTF8, bufferSize: 1024, leaveOpen: true);
+        using var writer = new StreamWriter(memoryStream, encoding, bufferSize: 1024, leaveOpen: true);
         foreach (var item in entries)
         {
             var line = $"{item.Headword!.Trim()}\t{string.Join('|', item.Inflections!)}\t{item.Definition}\n";
-            writer.WriteLine(line);
+            writer.Write(line);
         }
         writer.Flush();
         return new Result($"{fileName}.tsv", memoryStream.ToArray());
     }
 
-    public static Result ToStarDict(MobiHeader mh, List<DictionaryEntry> entries, List<string> imageNames, bool preprocessDefinitions = true)
+    public static async Task ToStarDict(MobiHeader mh, List<DictionaryEntry> entries, List<string> imageNames, string folder, bool preprocessDefinitions = true)
     {
         var fileName = SafeFileName(mh.Title);
-        if (preprocessDefinitions )
+        if (preprocessDefinitions)
             StarDictPreprocess(entries, imageNames);
         var outputEntries = entries.Select(x => x.Inflections!.Count > 0
             ? new OutputEntry(x.Headword!.Trim(), x.Definition!, x.Inflections.Select(x => x.Trim()).ToHashSet())
             : new OutputEntry(x.Headword!.Trim(), x.Definition!))
             .ToList();
-        var zipMs = StarDictNet.StarDictNet.Write(outputEntries, fileName, mh.Title, string.Join(", ", mh.Creator), string.Join(", ", mh.Description));
-        return new Result($"{fileName}.zip", zipMs.ToArray());
+        var writer = new StarDictWriter();
+        await writer.WriteAsync(entries:outputEntries, folder: folder, fileName: fileName,
+            title: mh.Title, author: string.Join(", ", mh.Creator), description: string.Join(", ", mh.Description));
     }
 
     [GeneratedRegex(@"<a\s+filepos[^>]+>(.*?)</a>")]

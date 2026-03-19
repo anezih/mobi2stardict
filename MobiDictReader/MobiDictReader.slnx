@@ -1,7 +1,5 @@
 <Solution>
-  <Project Path="../StarDictNet/StarDictNet/StarDictNet.csproj">
-    <Build Solution="Debug|*" Project="false" />
-  </Project>
+  <Project Path="../StarDictNet/StarDictNet/StarDictNet.Core.csproj" />
   <Project Path="MobiDict.Avalonia.Desktop/MobiDict.Avalonia.Desktop.csproj" />
   <Project Path="MobiDict.Avalonia/MobiDict.Avalonia.csproj" />
   <Project Path="MobiDict.Cli/MobiDict.Cli.csproj" Id="a57d8636-d55b-44bb-9ec6-0cd59562972a" />

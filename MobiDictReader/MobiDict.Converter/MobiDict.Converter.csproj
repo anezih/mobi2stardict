@@ -6,11 +6,11 @@
     <Nullable>enable</Nullable>
 	<RepositoryUrl>https://github.com/anezih/mobi2stardict</RepositoryUrl>
 	<Authors>https://github.com/anezih/mobi2stardict</Authors>
-	<Version>1.0.5</Version>
+	<Version>1.0.6</Version>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\StarDictNet\StarDictNet\StarDictNet.csproj" />
+    <ProjectReference Include="..\..\StarDictNet\StarDictNet\StarDictNet.Core.csproj" />
     <ProjectReference Include="..\MobiDict.Reader\MobiDict.Reader.csproj" />
   </ItemGroup>
 

@@ -4,7 +4,6 @@ using Avalonia.Controls.Templates;
 using Avalonia.Platform.Storage;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace MobiDict.Avalonia.Services;
@@ -63,6 +62,23 @@ public static class DialogHelper
 
         var file = await topLevel.StorageProvider.SaveFilePickerAsync(options);
         return file;
+    }
+
+    public static async Task<IReadOnlyList<IStorageFolder>?> PickFolderAsync(this IDialogParticipant? context, string? title = null)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        var topLevel = DialogManager.GetTopLevelForContext(context)
+                       ?? throw new InvalidOperationException("No TopLevel was resolved for the given context.");
+
+        var options = new FolderPickerOpenOptions()
+        {
+            AllowMultiple = false,
+            Title = title ?? "Select any folder."
+        };
+
+        var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(options);
+        return folders;
     }
 
     /// <summary>
