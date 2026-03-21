@@ -1,5 +1,6 @@
 ﻿using System.Buffers.Binary;
 using System.Diagnostics;
+using System.Globalization;
 using System.Numerics;
 
 namespace MobiDict.Reader;
@@ -388,6 +389,16 @@ public class DictionaryReader
         return trie;
     }
 
+    // Hacky workaround for Japanese dictionaries. Some punctuation characters' codepoint values are -100 in the ORDT2 lookup table
+    // ー, Katakana-Hiragana Prolonged Sound Mark, 0x30FC (12540), 12440 in the ORDT2
+    // ・, Katakana Middle Dot, 0x30FB (12539), 12439 in the ORDT2 (not sure about this one)
+    private uint JapaneseHeadwordWorkaround(uint lng, uint ordt2Lookup)
+    {
+        if (lng == 17 && CharUnicodeInfo.GetUnicodeCategory((int)ordt2Lookup) == UnicodeCategory.OtherNotAssigned)
+            return ordt2Lookup + 100;
+        return ordt2Lookup;
+    }
+
     private void BuildPositionMap()
     {
         bool decodeInflection = true;
@@ -440,6 +451,8 @@ public class DictionaryReader
 
         var data = sectionizer.LoadSection((int)mobiHeader.MetaOrthIndex);
         var (idxhdr, hordt1, hordt2) = ParseHeader(data);
+        var code = idxhdr["code"];
+        var lng = idxhdr["lng"];
         var tagSectionStart = idxhdr["len"];
         var (controlByteCount, tagTable) = ReadTagSection((int)tagSectionStart, data);
         var orthIndexCount = idxhdr["count"];
@@ -474,7 +487,10 @@ public class DictionaryReader
                         {
                             var offset = BinaryPrimitives.ReadUInt16BigEndian(text.AsSpan(pos));
                             if (offset < hordt2.Count)
-                                utext.Add((char)hordt2[(int)offset]);
+                            {
+                                var lookup = JapaneseHeadwordWorkaround(lng, hordt2[offset]);
+                                utext.Add((char)lookup);
+                            }
                             else
                                 utext.Add((char)offset);
                             pos += 2;
@@ -487,7 +503,10 @@ public class DictionaryReader
                         {
                             var offset = text[pos];
                             if (offset < hordt2.Count)
-                                utext.Add((char)hordt2[offset]);
+                            {
+                                var lookup = JapaneseHeadwordWorkaround(lng, hordt2[offset]);
+                                utext.Add((char)lookup);
+                            }
                             else
                                 utext.Add((char)offset);
                             pos++;
@@ -633,7 +652,7 @@ public class DictionaryReader
                     || type.SequenceEqual("\xa0\xa0\xa0\xa0"u8)
                     || type.SequenceEqual("RESC"u8)
                     || type.SequenceEqual("\xe9\x8e\x0d\x0a"u8)
-                    || type.SequenceEqual("BOUNDARY"u8))
+                    || data.AsSpan()[0..8].SequenceEqual("BOUNDARY"u8))
                     continue;
                 string ext = "";
                 if (data.Length >= gifMagic.Length && data.AsSpan()[0..gifMagic.Length].SequenceEqual(gifMagic))
