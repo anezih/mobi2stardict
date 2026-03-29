@@ -26,6 +26,8 @@ public class DictionaryReader
         "nctoc",
     ];
 
+    private record Ligatures(byte ControlByte, byte SecondByte, byte Ligature);
+
     // If the hasEntryLength is false we will calculate entry length by substracting start pos of n from n+1'th entry.
     private bool hasEntryLength = false;
     private List<(int StartPos, int EndPos, string Headword, List<string> Inflections)> posMap = [];
@@ -36,7 +38,7 @@ public class DictionaryReader
         this.sectionizer = sectionizer;
     }
 
-    private (Dictionary<string,uint> Header, List<byte> Ordt1, List<uint> Ordt2) ParseHeader(ReadOnlySpan<byte> data)
+    private (Dictionary<string,uint> Header, List<byte> Ordt1, List<uint> Ordt2, List<Ligatures> Ligatures) ParseHeader(ReadOnlySpan<byte> data)
     {
         if (!data[..4].SequenceEqual("INDX"u8))
             throw new InvalidDataException("Index section is not \"INDX\"");
@@ -45,6 +47,7 @@ public class DictionaryReader
         Dictionary<string, uint> Header = new();
         List<byte> Ordt1 = [];
         List<uint> Ordt2 = [];
+        List<Ligatures> Ligatures = [];
 
         ReadOnlySpan<byte> dataSlice = data[4..(4 * (num + 1))];
         List<uint> values = [];
@@ -67,7 +70,8 @@ public class DictionaryReader
         Header["otype"] = otype;
         Header["oentries"] = oentries;
 
-        if (Header["code"] == 0xFDEA | oentries > 0)
+        bool hasOrdt = Header["code"] == 0xFDEA | oentries > 0;
+        if (hasOrdt)
         {
             if (!data[(int)op1..((int)op1 + 4)].SequenceEqual("ORDT"u8) || !data[(int)op2..((int)op2 + 4)].SequenceEqual("ORDT"u8))
                 throw new InvalidDataException("Ordt section is not \"ORDT\"");
@@ -80,7 +84,21 @@ public class DictionaryReader
                 Ordt2.Add(BinaryPrimitives.ReadUInt16BigEndian(ordt2Slice.Slice(byteIndex, 2)));
             }
         }
-        return (Header, Ordt1, Ordt2);
+
+        var ligtOffset = Header["ligt"];
+        if (ligtOffset > 0 && data[(int)ligtOffset..(int)(ligtOffset + 4)].SequenceEqual("LIGT"u8))
+        {
+            var ligtNum = Header["nligt"];
+            ReadOnlySpan<byte> ligtSlice = data[(int)(ligtOffset + 4)..(int)(ligtOffset + 4 + (ligtNum * 4))];
+            for (int i = 0, byteIndex = 0; i < ligtNum; i++, byteIndex += 4)
+            {
+                var lig = ligtSlice[byteIndex];
+                var controlByte = ligtSlice[byteIndex + 2];
+                var secondByte = ligtSlice[(byteIndex + 3)];
+                Ligatures.Add(new(controlByte, secondByte, lig));
+            }
+        }
+        return (Header, Ordt1, Ordt2, Ligatures);
     }
 
     private (int ControlByteCount, List<int[]> Tags) ReadTagSection(int startPos, byte[] data)
@@ -344,7 +362,7 @@ public class DictionaryReader
 
         foreach (var rec in inflIndexRecords)
         {
-            var (hdr, ordt1, ordt2) = ParseHeader(rec);
+            var (hdr, ordt1, ordt2, _) = ParseHeader(rec);
             int idxtPos = (int)hdr["start"];
             int entryCount = (int)hdr["count"];
 
@@ -399,6 +417,30 @@ public class DictionaryReader
         return ordt2Lookup;
     }
 
+    /// <summary>
+    /// Handles ligature replacements in codepage 1252.
+    /// </summary>
+    /// <param name="text"></param>
+    /// <param name="ligatures"></param>
+    /// <returns></returns>
+    private byte[] HandleLigatures(byte[] text, List<Ligatures> ligatures)
+    {
+        var controlBytes = ligatures.Select(x => x.ControlByte).ToList();
+        for (int i = 0; i < text.Length; i++)
+        {
+            if (controlBytes.Contains(text[i]))
+            {
+                var lig = ligatures.First(x => x.ControlByte == text[i]);
+                if (text[i+1] == lig.SecondByte)
+                {
+                    ReadOnlySpan<byte> newText = [.. text[..i], lig.Ligature, .. text[(i + 2)..]];
+                    return newText.ToArray();
+                }
+            }
+        }
+        return text;
+    }
+
     private void BuildPositionMap()
     {
         bool decodeInflection = true;
@@ -417,7 +459,7 @@ public class DictionaryReader
         else
         {
             var metaInflIndexData = sectionizer.LoadSection((int)mobiHeader.MetaInflIndex);
-            var (midxhdr, mhordt1, mhordt2) = ParseHeader(metaInflIndexData);
+            var (midxhdr, mhordt1, mhordt2, _) = ParseHeader(metaInflIndexData);
             var metaIndexCount = midxhdr["count"];
             List<byte[]> inflectionData = [];
             for (int i = 0; i < metaIndexCount; i++)
@@ -450,9 +492,10 @@ public class DictionaryReader
         }
 
         var data = sectionizer.LoadSection((int)mobiHeader.MetaOrthIndex);
-        var (idxhdr, hordt1, hordt2) = ParseHeader(data);
+        var (idxhdr, hordt1, hordt2, ligatures) = ParseHeader(data);
         var code = idxhdr["code"];
         var lng = idxhdr["lng"];
+        bool hasLigatures = ligatures.Count > 0;
         var tagSectionStart = idxhdr["len"];
         var (controlByteCount, tagTable) = ReadTagSection((int)tagSectionStart, data);
         var orthIndexCount = idxhdr["count"];
@@ -460,7 +503,7 @@ public class DictionaryReader
         for (int i = (int)(mobiHeader.MetaOrthIndex + 1); i < mobiHeader.MetaOrthIndex + 1 + orthIndexCount; i++)
         {
             data = sectionizer.LoadSection(i);
-            var (hdrinfo, ordt1, ordt2) = ParseHeader(data);
+            var (hdrinfo, ordt1, ordt2, _) = ParseHeader(data);
             var idxtPos = hdrinfo["start"];
             var entryCount = hdrinfo["count"];
             List<int> idxPositions = [];
@@ -472,12 +515,15 @@ public class DictionaryReader
             idxPositions.Add((int)idxtPos);
             for (int j = 0; j < entryCount; j++)
             {
+                bool hasOrdt = hordt2.Count > 0;
                 var startPos = idxPositions[j];
                 var endPos = idxPositions[j + 1];
                 var textLength = data[startPos];
-                var text = data[(startPos + 1)..(startPos + 1 + textLength)];
+                var text = hasLigatures && !hasOrdt
+                    ? HandleLigatures(data[(startPos + 1)..(startPos + 1 + textLength)], ligatures)
+                    : data[(startPos + 1)..(startPos + 1 + textLength)];
                 string headWord = mobiHeader.Codec.GetString(text);
-                if (hordt2.Count > 0)
+                if (hasOrdt)
                 {
                     List<char> utext = [];
                     if (idxhdr["otype"] == 0)
@@ -626,7 +672,7 @@ public class DictionaryReader
         ReadOnlySpan<byte> jpegMagic = [0xFF, 0xD8, 0xFF];
 
         var beginning = mobiHeader.FirstImageIndex;
-        var end = sectionizer.NumberOfSections;
+        var end = sectionizer.NumberOfSections - 1;
         List<Resource> resources = [];
         if (beginning < 0 || beginning >= end)
             return resources;
