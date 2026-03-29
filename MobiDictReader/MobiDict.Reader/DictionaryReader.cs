@@ -27,6 +27,7 @@ public class DictionaryReader
     ];
 
     private record Ligatures(byte ControlByte, byte SecondByte, byte Ligature);
+    private record LigaturesUtf16(uint ControlByte, uint SecondByte, char Ligature);
 
     // If the hasEntryLength is false we will calculate entry length by substracting start pos of n from n+1'th entry.
     private bool hasEntryLength = false;
@@ -441,6 +442,35 @@ public class DictionaryReader
         return text;
     }
 
+    // Even though the LIGT section may not be present in MetaOrthIndex, we still need to handle
+    // ligatures in newer dictionaries.
+    private List<char> HandleLigatures(List<char> text)
+    {
+        // In UTF-16
+        List<LigaturesUtf16> replacements =
+            [
+                new (0x01, 0x45, 'Œ'),
+                new (0x02, 0x65, 'œ'),
+                new (0x03, 0x45, 'Æ'),
+                new (0x04, 0x65, 'æ'),
+                new (0x05, 0x73, 'ß')
+            ];
+        var controlBytes = replacements.Select(x => x.ControlByte).ToList();
+        for (int i = 0; i < text.Count; i++)
+        {
+            if (controlBytes.Contains(text[i]))
+            {
+                var lig = replacements.First(x => x.ControlByte == text[i]);
+                if (text[i + 1] == lig.SecondByte)
+                {
+                    List<char> newText = [.. text[..i], lig.Ligature, .. text[(i + 2)..]];
+                    return newText;
+                }
+            }
+        }
+        return text;
+    }
+
     private void BuildPositionMap()
     {
         bool decodeInflection = true;
@@ -558,6 +588,7 @@ public class DictionaryReader
                             pos++;
                         }
                     }
+                    utext = HandleLigatures(utext);
                     headWord = new string(utext.ToArray());
                     text = mobiHeader.Codec.GetBytes(headWord);
                 }
