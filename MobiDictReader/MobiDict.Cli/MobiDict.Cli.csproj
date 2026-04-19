@@ -10,7 +10,7 @@
     <RepositoryUrl>https://github.com/anezih/mobi2stardict</RepositoryUrl>
 	<Authors>https://github.com/anezih/mobi2stardict</Authors>
 	<Description>Convert MOBI dictionaries to TSV and StarDict formats.</Description>
-	<Version>1.0.6</Version>
+	<Version>1.1.0</Version>
 	<PublishSingleFile>true</PublishSingleFile>
 	<PublishAot>true</PublishAot>
   </PropertyGroup>

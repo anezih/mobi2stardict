@@ -109,12 +109,8 @@ public partial class MainViewModel : ObservableObject, IDialogParticipant
             IsErrorMessageVisible = false;
 
             var file = results.First();
-            MemoryStream ms = new();
-            await using (Stream stream = await file.OpenReadAsync())
-            {
-                await stream.CopyToAsync(ms);
-            }
-            var section = new Sectionizer(ms);
+            await using var stream = await file.OpenReadAsync();
+            using var section = new Sectionizer(stream);
             mobiHeader = new MobiHeader(section, 0);
             if (mobiHeader.IsEncrypted)
             {

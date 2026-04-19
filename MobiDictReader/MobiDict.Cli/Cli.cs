@@ -44,7 +44,7 @@ public static class Cli
         try
         {
             using var fs = new FileStream(Input, FileMode.Open, FileAccess.Read);
-            var section = new Sectionizer(fs);
+            using var section = new Sectionizer(fs);
             var mh = new MobiHeader(section, 0);
             if (mh.IsEncrypted)
             {

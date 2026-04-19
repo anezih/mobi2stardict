@@ -3,11 +3,12 @@ using System.Text;
 
 namespace MobiDict.Reader;
 
-public class Sectionizer
+public class Sectionizer : IDisposable
 {
     private Stream mobiStream;
     private byte[] PalmHeader;
     private List<uint> SectionOffsets;
+    private bool disposedValue;
 
     public Sectionizer(Stream mobiStream)
     {
@@ -57,5 +58,24 @@ public class Sectionizer
         mobiStream.Seek(first, SeekOrigin.Begin);
         mobiStream.ReadExactly(buf, 0, (int)length);
         return buf;
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposedValue)
+        {
+            if (disposing)
+            {
+                mobiStream?.Dispose();
+            }
+
+            disposedValue = true;
+        }
+    }
+
+    public void Dispose()
+    {
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
     }
 }
