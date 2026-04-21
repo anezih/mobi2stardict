@@ -24,6 +24,12 @@ Options:
   -o, --output-folder <string?>    Output folder where the files will be saved [Default: null]
 ```
 
+PowerShell snippet for batch processing:
+
+```powershell
+gci *.mobi | ForEach-Object -Parallel { mkdir $_.BaseName -Force | Out-Null; .\MobiDict.Cli.exe -i $_ --stardict -o $_.BaseName; Write-Host "> Processed $($_.BaseName)"; } -ThrottleLimit 5
+```
+
 <details>
 <summary><h1>Python Script (Old)</h1></summary>
 
