@@ -1,9 +1,9 @@
 # mobi2stardict
 Convert MOBI dictionaries to StarDict and TSV formats.
 
-You can get both .NET Desktop and Cli applications from [releases](https://github.com/anezih/mobi2stardict/releases). Both programs does not need the intermediary unpacked HTML file and can directly read MOBI dictionary files.
+You can get both .NET Desktop and Cli applications from [releases](https://github.com/anezih/mobi2stardict/releases). Neither program needs the intermediary unpacked HTML file and can directly read MOBI dictionary files.
 
-[MobiDict.Reader](https://github.com/anezih/mobi2stardict/tree/main/MobiDictReader/MobiDict.Reader) class library is a direct and bare-minimum implementation of [KindleUnpack](https://github.com/kevinhendricks/KindleUnpack) in order to extract dictionary entries. Code for decoding the inflection scheme used in older dictionaries is adapted from [libmobi](https://github.com/bfabiszewski/libmobi) project.
+[MobiDict.Reader](https://github.com/anezih/mobi2stardict/tree/main/MobiDictReader/MobiDict.Reader) class library is a direct and bare-minimum implementation of [KindleUnpack](https://github.com/kevinhendricks/KindleUnpack) in order to extract dictionary entries. Code for decoding the inflection scheme used in older dictionaries is adapted from the [libmobi](https://github.com/bfabiszewski/libmobi) project.
 
 # .NET Desktop Application
 
