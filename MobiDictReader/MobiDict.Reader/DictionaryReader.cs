@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace MobiDict.Reader;
 
@@ -10,7 +11,7 @@ public class DictionaryReader
     private MobiHeader mobiHeader;
     private Sectionizer sectionizer;
 
-    private readonly List<string> words = [
+    private string[] words = [
         "len",
         "nul1",
         "type",
@@ -26,12 +27,20 @@ public class DictionaryReader
         "nctoc",
     ];
 
+    private LigaturesUtf16[] utf16Replacements = [
+        new (0x01, 0x45, 'Œ'),
+        new (0x02, 0x65, 'œ'),
+        new (0x03, 0x45, 'Æ'),
+        new (0x04, 0x65, 'æ'),
+        new (0x05, 0x73, 'ß')
+    ];
+
+    private uint[] utf16ControlBytes = [0x01, 0x02, 0x03, 0x04, 0x05];
+
     private record Ligatures(byte ControlByte, byte SecondByte, byte Ligature);
     private record LigaturesUtf16(uint ControlByte, uint SecondByte, char Ligature);
 
-    // If the hasEntryLength is false we will calculate entry length by substracting start pos of n from n+1'th entry.
     private bool hasEntryLength = false;
-    private List<(int StartPos, int EndPos, string Headword, List<string> Inflections)> posMap = [];
 
     public DictionaryReader(MobiHeader mobiHeader, Sectionizer sectionizer)
     {
@@ -43,7 +52,7 @@ public class DictionaryReader
     {
         if (!data[..4].SequenceEqual("INDX"u8))
             throw new InvalidDataException("Index section is not \"INDX\"");
-        var num = words.Count;
+        var num = words.Length;
 
         Dictionary<string, uint> Header = new();
         List<byte> Ordt1 = [];
@@ -411,6 +420,7 @@ public class DictionaryReader
     // Hacky workaround for Japanese dictionaries. Some punctuation characters' codepoint values are -100 in the ORDT2 lookup table
     // ー, Katakana-Hiragana Prolonged Sound Mark, 0x30FC (12540), 12440 in the ORDT2
     // ・, Katakana Middle Dot, 0x30FB (12539), 12439 in the ORDT2 (not sure about this one)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private uint JapaneseHeadwordWorkaround(uint lng, uint ordt2Lookup)
     {
         if (lng == 17 && CharUnicodeInfo.GetUnicodeCategory((int)ordt2Lookup) == UnicodeCategory.OtherNotAssigned)
@@ -424,6 +434,7 @@ public class DictionaryReader
     /// <param name="text"></param>
     /// <param name="ligatures"></param>
     /// <returns></returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private byte[] HandleLigatures(byte[] text, List<Ligatures> ligatures)
     {
         var controlBytes = ligatures.Select(x => x.ControlByte).ToList();
@@ -444,23 +455,14 @@ public class DictionaryReader
 
     // Even though the LIGT section may not be present in MetaOrthIndex, we still need to handle
     // ligatures in newer dictionaries.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private List<char> HandleLigatures(List<char> text)
     {
-        // In UTF-16
-        List<LigaturesUtf16> replacements =
-            [
-                new (0x01, 0x45, 'Œ'),
-                new (0x02, 0x65, 'œ'),
-                new (0x03, 0x45, 'Æ'),
-                new (0x04, 0x65, 'æ'),
-                new (0x05, 0x73, 'ß')
-            ];
-        var controlBytes = replacements.Select(x => x.ControlByte).ToList();
         for (int i = 0; i < text.Count; i++)
         {
-            if (controlBytes.Contains(text[i]))
+            if (utf16ControlBytes.Contains(text[i]))
             {
-                var lig = replacements.First(x => x.ControlByte == text[i]);
+                var lig = utf16Replacements.First(x => x.ControlByte == text[i]);
                 if (text[i + 1] == lig.SecondByte)
                 {
                     List<char> newText = [.. text[..i], lig.Ligature, .. text[(i + 2)..]];
@@ -471,7 +473,7 @@ public class DictionaryReader
         return text;
     }
 
-    private void BuildPositionMap()
+    private List<(int StartPos, int EndPos, string Headword, List<string> Inflections)> BuildPositionMap()
     {
         bool decodeInflection = true;
         bool decodeOldInflectionScheme = false;
@@ -481,6 +483,7 @@ public class DictionaryReader
         byte[]? inflNameData = null;
         int inflectionControlByteCount = -1;
         List<int[]>? inflectionTagTable = null;
+        List<(int StartPos, int EndPos, string Headword, List<string> Inflections)> posMap;
         if (!mobiHeader.IsDictionary)
             throw new NotSupportedException("MOBI file is not a dictionary.");
         
@@ -523,6 +526,7 @@ public class DictionaryReader
 
         var data = sectionizer.LoadSection((int)mobiHeader.MetaOrthIndex);
         var (idxhdr, hordt1, hordt2, ligatures) = ParseHeader(data);
+        var total = idxhdr["total"];
         var code = idxhdr["code"];
         var lng = idxhdr["lng"];
         bool hasLigatures = ligatures.Count > 0;
@@ -530,6 +534,9 @@ public class DictionaryReader
         var (controlByteCount, tagTable) = ReadTagSection((int)tagSectionStart, data);
         var orthIndexCount = idxhdr["count"];
         hasEntryLength = HasTag(tagTable, 0x02);
+        posMap = total > 0
+            ? new((int)total)
+            : new();
         for (int i = (int)(mobiHeader.MetaOrthIndex + 1); i < mobiHeader.MetaOrthIndex + 1 + orthIndexCount; i++)
         {
             data = sectionizer.LoadSection(i);
@@ -647,23 +654,23 @@ public class DictionaryReader
                 }
             }
         }
+        return posMap;
     }
 
     public List<DictionaryEntry> GetEntries()
     {
-        BuildPositionMap();
+        var posMap = BuildPositionMap();
         var rawML = mobiHeader.GetRawML();
-        ReadOnlySpan<byte> rawMLSpan = rawML;
-        var rawMLLength = rawMLSpan.Length;
-        
-        List<DictionaryEntry> entries = [];
+        var rawMLLength = rawML.Length;
+
+        List<DictionaryEntry> entries = new(posMap.Count);
         if (hasEntryLength)
         {
             foreach (var item in posMap)
             {
                 try
                 {
-                    var definition = mobiHeader.Codec.GetString(rawMLSpan[item.StartPos..item.EndPos]);
+                    var definition = mobiHeader.Codec.GetString(rawML[item.StartPos..item.EndPos]);
                     entries.Add(new DictionaryEntry { Headword = item.Headword, Inflections = item.Inflections, Definition = definition });
                 }
                 catch (Exception ex)
@@ -681,14 +688,14 @@ public class DictionaryReader
                 var endPos = sortedPosMap[i + 1].StartPos;
                 if (startPos > endPos)
                     continue;
-                var definition = mobiHeader.Codec.GetString(rawMLSpan[startPos..endPos]);
+                var definition = mobiHeader.Codec.GetString(rawML[startPos..endPos]);
                 entries.Add(new DictionaryEntry { Headword = sortedPosMap[i].Headword, Inflections = sortedPosMap[i].Inflections, Definition = definition });
             }
             
             var last = sortedPosMap[^1];
             if (last.StartPos < rawMLLength)
             {
-                var definition = mobiHeader.Codec.GetString(rawMLSpan[last.StartPos..rawMLLength]);
+                var definition = mobiHeader.Codec.GetString(rawML[last.StartPos..rawMLLength]);
                 entries.Add(new DictionaryEntry{ Headword = last.Headword, Inflections = last.Inflections, Definition = definition });
             }
         }

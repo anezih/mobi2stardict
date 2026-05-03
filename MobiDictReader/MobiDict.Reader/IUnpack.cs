@@ -2,5 +2,5 @@
 
 public interface IUnpack
 {
-    byte[] Unpack(ReadOnlySpan<byte> data);
+    int Unpack(ReadOnlySpan<byte> data, Span<byte> destination);
 }

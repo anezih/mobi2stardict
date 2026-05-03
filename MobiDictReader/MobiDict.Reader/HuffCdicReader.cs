@@ -19,13 +19,14 @@ public class HuffCdicReader : IUnpack
         return (codelen, term, maxcode);
     }
 
-    public byte[] Unpack(ReadOnlySpan<byte> data)
+    public int Unpack(ReadOnlySpan<byte> data, Span<byte> destination)
     {
         var bitsleft = data.Length * 8;
         ReadOnlySpan<byte> data2 = [..data, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0];
         int pos = 0;
         var x = BinaryPrimitives.ReadUInt64BigEndian(data2[pos..]);
         int n = 32;
+        int written = 0;
 
         List<byte> s = [];
         while (true)
@@ -54,13 +55,18 @@ public class HuffCdicReader : IUnpack
             var (slice, flag) = Dictionary[(int)r];
             if (flag == 0)
             {
-                Dictionary[(int)r] = ([], 0);
-                slice = Unpack(slice);
-                Dictionary[(int)r] = (slice, 1);
+                int bytesWritten = Unpack(slice, destination.Slice(written));
+                var result = destination.Slice(written, bytesWritten).ToArray();
+                Dictionary[(int)r] = (result, 1);
+                written += bytesWritten;
             }
-            s.AddRange(slice);
+            else
+            {
+                slice.CopyTo(destination.Slice(written));
+                written += slice.Length;
+            }
         }
-        return s.ToArray();
+        return written;
     }
 
     public void LoadHuff(byte[] data)

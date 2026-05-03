@@ -2,5 +2,9 @@
 
 public class UncompressedReader : IUnpack
 {
-    public byte[] Unpack(ReadOnlySpan<byte> data) => data.ToArray();
+    public int Unpack(ReadOnlySpan<byte> data, Span<byte> destination)
+    {
+        data.CopyTo(destination);
+        return data.Length;
+    }
 }

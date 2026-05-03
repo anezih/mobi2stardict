@@ -2,10 +2,10 @@
 
 public class PalmdocReader : IUnpack
 {
-    public byte[] Unpack(ReadOnlySpan<byte> data)
+    public int Unpack(ReadOnlySpan<byte> data, Span<byte> destination)
     {
-        List<byte> output = new();
         int p = 0;
+        int written = 0;
 
         while (p < data.Length)
         {
@@ -14,18 +14,18 @@ public class PalmdocReader : IUnpack
             {
                 for (int k = 0; k < c; k++)
                 {
-                    output.Add(data[p + k]);
+                    destination[written++] = (data[p + k]);
                 }
                 p += c;
             }
             else if (c < 128)
             {
-                output.Add((byte)c);
+                destination[written++] = (byte)c;
             }
             else if (c >= 192)
             {
-                output.AddRange(" "u8);
-                output.Add((byte)(c ^ 128));
+                destination[written++] = (byte)' ';
+                destination[written++] = (byte)(c ^ 128);
             }
             else
             {
@@ -35,32 +35,13 @@ public class PalmdocReader : IUnpack
                 int m = (c >> 3) & 0x07FF;
                 int n = (c & 7) + 3;
 
-                if (m > n)
+                for (int k = 0; k < n; k++)
                 {
-                    int start = output.Count - m;
-                    for (int k = 0; k < n; k++)
-                    {
-                        output.Add(output[start + k]);
-                    }
-                }
-                else
-                {
-                    for (int _ = 0; _ < n; _++)
-                    {
-                        if (m == 1)
-                        {
-                            byte b = output[output.Count - 1];
-                            output.Add(b);
-                        }
-                        else
-                        {
-                            byte b = output[output.Count - m];
-                            output.Add(b);
-                        }
-                    }
+                    destination[written] = destination[written - m];
+                    written++;
                 }
             }
         }
-        return output.ToArray();
+        return written;
     }
 }

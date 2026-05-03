@@ -1,4 +1,5 @@
-﻿using System.Buffers.Binary;
+﻿using System.Buffers;
+using System.Buffers.Binary;
 using System.Text;
 
 namespace MobiDict.Reader;
@@ -50,6 +51,7 @@ public class MobiHeader
     private int Records => BinaryPrimitives.ReadUInt16BigEndian(header.AsSpan(0x8));
 
     private int Length => (int)BinaryPrimitives.ReadUInt32BigEndian(header.AsSpan(20));
+    private uint RawMLLength => BinaryPrimitives.ReadUInt32BigEndian(header.AsSpan(0x04));
 
     public bool IsDictionary => metaOrthIndex != 0xFFFFFFFF;
     public bool IsEncrypted => BinaryPrimitives.ReadUInt16BigEndian(header.AsSpan(0xC)) != 0;
@@ -195,7 +197,7 @@ public class MobiHeader
         }
     }
 
-    public byte[] GetRawML()
+    public ReadOnlySpan<byte> GetRawML()
     {
         int trailers = 0;
         bool multiByte = false;
@@ -242,13 +244,22 @@ public class MobiHeader
                 }
             }
         }
-        List<byte> dataList = new();
-        for (int i = 1; i < Records+1; i++)
+        byte[] buffer = ArrayPool<byte>.Shared.Rent((int)RawMLLength);
+        int offSet = 0;
+        try
         {
-            var data = TrimTrailingDataEntries(sectionizer.LoadSection(sectionNumber + i), trailers, multiByte);
-            var unpacked = reader?.Unpack(data);
-            dataList.AddRange(unpacked!);
+            for (int i = 1; i < Records + 1; i++)
+            {
+                var data = TrimTrailingDataEntries(sectionizer.LoadSection(sectionNumber + i), trailers, multiByte);
+                var unpackedSize = reader?.Unpack(data, buffer.AsSpan(offSet));
+                if (unpackedSize.HasValue && unpackedSize > 0)
+                    offSet += (int)unpackedSize;
+            }
+            return buffer.AsSpan(0, offSet).ToArray();
         }
-        return dataList.ToArray();
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
     }
 }
